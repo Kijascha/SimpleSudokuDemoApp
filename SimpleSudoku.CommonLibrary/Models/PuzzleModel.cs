@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 
 namespace SimpleSudoku.CommonLibrary.Models;
 
-public class PuzzleModel
+public class PuzzleModel : IPuzzleModel
 {
     public const int Size = 9; // set to 9 for now for a regular 9x9 sudoku grid
     public int?[,] Digits { get; init; }
@@ -26,6 +26,7 @@ public class PuzzleModel
 
         InitializeCandidates();
     }
+    private readonly object lockObject = new object();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PuzzleModel"/> class using an observable collection of <see cref="CellModel"/>.
@@ -92,45 +93,48 @@ public class PuzzleModel
     /// <exception cref="ArgumentException">Thrown if the digit is not between 1 and 9 (inclusive) or null.</exception>
     public void UpdateDigit(int row, int column, int? digit, bool validate = true)
     {
-        ValidateRowColumn(row, column);
-        ValidateDigit(digit);
-
-        if (validate && digit.HasValue)
+        lock (lockObject)
         {
-            var validationResult = IsValidDigit(row, column, digit.Value);
-            if (!validationResult.isValid)
-            {
-                SudokuError?.Invoke(this, new SudokuErrorEventArgs(row, column, validationResult.conflictingRow, validationResult.conflictingColumn));
-                return;
-            }
-        }
+            ValidateRowColumn(row, column);
+            ValidateDigit(digit);
 
-        if (digit.HasValue)
-        {
-            // Backup player candidates before clearing
-            PlayerCandidatesBackup.Add((row, column, new HashSet<int>(PlayerCandidates[row, column])));
-            // Clear candidates for this cell if a digit is set
-            SolverCandidates[row, column].Clear();
-            PlayerCandidates[row, column].Clear();
-        }
-        else
-        {
-            // Restore player candidates when digit is removed
-            var backup = PlayerCandidatesBackup.FirstOrDefault(b => b.row == row && b.column == column);
-            if (backup != default)
+            if (validate && digit.HasValue)
             {
-                PlayerCandidates[row, column] = new HashSet<int>(backup.candidates);
-                PlayerCandidatesBackup.Remove(backup);
+                var validationResult = IsValidDigit(row, column, digit.Value);
+                if (!validationResult.isValid)
+                {
+                    SudokuError?.Invoke(this, new SudokuErrorEventArgs(row, column, validationResult.conflictingRow, validationResult.conflictingColumn));
+                    return;
+                }
             }
-            // Reset solver candidates for this cell
-            SolverCandidates[row, column].Clear();
-            for (int num = 1; num <= Size; num++)
-            {
-                SolverCandidates[row, column].Add(num);
-            }
-        }
 
-        Digits[row, column] = digit;
+            if (digit.HasValue)
+            {
+                // Backup player candidates before clearing
+                PlayerCandidatesBackup.Add((row, column, new HashSet<int>(PlayerCandidates[row, column])));
+                // Clear candidates for this cell if a digit is set
+                SolverCandidates[row, column].Clear();
+                PlayerCandidates[row, column].Clear();
+            }
+            else
+            {
+                // Restore player candidates when digit is removed
+                var backup = PlayerCandidatesBackup.FirstOrDefault(b => b.row == row && b.column == column);
+                if (backup != default)
+                {
+                    PlayerCandidates[row, column] = new HashSet<int>(backup.candidates);
+                    PlayerCandidatesBackup.Remove(backup);
+                }
+                // Reset solver candidates for this cell
+                SolverCandidates[row, column].Clear();
+                for (int num = 1; num <= Size; num++)
+                {
+                    SolverCandidates[row, column].Add(num);
+                }
+            }
+
+            Digits[row, column] = digit;
+        }
     }
 
     /// <summary>
@@ -147,24 +151,27 @@ public class PuzzleModel
     /// </remarks>
     public void UpdateSolverCandidate(int row, int column, int candidate)
     {
-        ValidateRowColumn(row, column);
-        ValidateCandidate(candidate);
+        lock (lockObject)
+        {
+            ValidateRowColumn(row, column);
+            ValidateCandidate(candidate);
 
-        if (Digits[row, column].HasValue)
-        {
-            // If a digit is already set, do nothing as candidates should be ignored
-            return;
-        }
+            if (Digits[row, column].HasValue)
+            {
+                // If a digit is already set, do nothing as candidates should be ignored
+                return;
+            }
 
-        if (SolverCandidates[row, column].Contains(candidate))
-        {
-            // Remove candidate if it exists
-            SolverCandidates[row, column].Remove(candidate);
-        }
-        else
-        {
-            // Add candidate if it does not exist
-            SolverCandidates[row, column].Add(candidate);
+            if (SolverCandidates[row, column].Contains(candidate))
+            {
+                // Remove candidate if it exists
+                SolverCandidates[row, column].Remove(candidate);
+            }
+            else
+            {
+                // Add candidate if it does not exist
+                SolverCandidates[row, column].Add(candidate);
+            }
         }
     }
 
@@ -182,26 +189,91 @@ public class PuzzleModel
     /// <exception cref="ArgumentException">Thrown if the candidate is not between 1 and 9 (inclusive).</exception>
     public void UpdatePlayerCandidate(int row, int column, int candidate)
     {
-        ValidateRowColumn(row, column);
-        ValidateCandidate(candidate);
+        lock (lockObject)
+        {
+            ValidateRowColumn(row, column);
+            ValidateCandidate(candidate);
 
-        if (Digits[row, column].HasValue)
-        {
-            // If a digit is already set, do nothing as candidates should be ignored
-            return;
-        }
+            if (Digits[row, column].HasValue)
+            {
+                // If a digit is already set, do nothing as candidates should be ignored
+                return;
+            }
 
-        if (PlayerCandidates[row, column].Contains(candidate))
-        {
-            // Remove candidate if it exists
-            PlayerCandidates[row, column].Remove(candidate);
-        }
-        else
-        {
-            // Add candidate if it does not exist
-            PlayerCandidates[row, column].Add(candidate);
+            if (PlayerCandidates[row, column].Contains(candidate))
+            {
+                // Remove candidate if it exists
+                PlayerCandidates[row, column].Remove(candidate);
+            }
+            else
+            {
+                // Add candidate if it does not exist
+                PlayerCandidates[row, column].Add(candidate);
+            }
         }
     }
+
+    /// <summary>
+    /// Retrieves the digits and candidate sets for each cell in the specified row.
+    /// </summary>
+    /// <param name="row">The row index (0-8) of the Sudoku grid.</param>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
+    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the row.</returns>
+    public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates)
+    {
+        for (int column = 0; column < Size; column++)
+        {
+            ValidateRowColumn(row, column);
+
+            if (usePlayerCandidates)
+                yield return (Digits[row, column], PlayerCandidates[row, column]);
+
+            yield return (Digits[row, column], SolverCandidates[row, column]);
+        }
+    }
+
+    /// <summary>
+    /// Retrieves the digits and candidate sets for each cell in the specified column.
+    /// </summary>
+    /// <param name="col">The column index (0-8) of the Sudoku grid.</param>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
+    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the column.</returns>
+    public IEnumerable<(int? Digits, HashSet<int> Candidates)>? GetColumn(int column, bool usePlayerCandidates)
+    {
+        for (int row = 0; row < Size; row++)
+        {
+            ValidateRowColumn(row, column);
+
+            if (usePlayerCandidates)
+                yield return (Digits[row, column], PlayerCandidates[row, column]);
+
+            yield return (Digits[row, column], SolverCandidates[row, column]);
+        }
+    }
+
+    /// <summary>
+    /// Retrieves the digits and candidate sets for each cell in the specified 3x3 subgrid (box).
+    /// </summary>
+    /// <param name="startRow">The starting row index (0-6) of the subgrid.</param>
+    /// <param name="startCol">The starting column index (0-6) of the subgrid.</param>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
+    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the subgrid.</returns>
+    public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates)
+    {
+        for (int row = startRow; row < startRow + 3; row++)
+        {
+            for (int column = startCol; column < startCol + 3; column++)
+            {
+                ValidateRowColumn(row, column);
+
+                if (usePlayerCandidates)
+                    yield return (Digits[row, column], PlayerCandidates[row, column]);
+
+                yield return (Digits[row, column], SolverCandidates[row, column]);
+            }
+        }
+    }
+
 
     private void ValidateRowColumn(int row, int column)
     {

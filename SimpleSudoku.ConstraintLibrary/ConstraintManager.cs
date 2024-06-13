@@ -71,7 +71,16 @@ public class ConstraintManager
             if (!success)
             {
                 allConstraintsApplied = false;
-                OnConstraintFailed(new ConstraintErrorEventArgs(constraint, errorMessage));
+
+                // Perform null check on errorMessage
+                if (errorMessage != null)
+                {
+                    OnConstraintFailed(new ConstraintErrorEventArgs(constraint, errorMessage));
+                }
+                else
+                {
+                    OnConstraintFailed(new ConstraintErrorEventArgs(constraint, "Unknown error occurred."));
+                }
             }
             else
             {

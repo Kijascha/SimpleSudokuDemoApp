@@ -11,5 +11,10 @@ public partial class CellModel : ObservableObject
     public HashSet<int> SolverCandidates { get; set; }
     public HashSet<int> PlayerCandidates { get; set; }
     public Thickness CellBorderThickness { get; set; } = new Thickness(.5, .5, .5, .5);
+    public CellModel()
+    {
+        PlayerCandidates = [];
+        SolverCandidates = [];
+    }
 
 }
