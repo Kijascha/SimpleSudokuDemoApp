@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SimpleSudoku.CommonLibrary.Models;
 using SimpleSudokuDemo.Services;
 using SimpleSudokuDemo.ViewModels;
 using SimpleSudokuDemo.Views;
+using System.Collections.ObjectModel;
 using System.Windows;
 
 namespace SimpleSudokuDemo
@@ -26,6 +28,7 @@ namespace SimpleSudokuDemo
 
                     services.AddNavigationService();
                     services.AddSingleton((p) => p);
+                    services.AddSingleton<IEnumerable<CellModel>, ObservableCollection<CellModel>>((p) => InitializeCollection());
 
                     // Register Views and set DataContext for each one
                     services.AddSingleton(p => new StartupView()
@@ -61,6 +64,34 @@ namespace SimpleSudokuDemo
             await AppHost!.StopAsync();
 
             base.OnExit(e);
+        }
+
+        private ObservableCollection<CellModel> InitializeCollection()
+        {
+            var cellCollection = new ObservableCollection<CellModel>();
+
+            for (int row = 0; row < PuzzleModel.Size; row++)
+            {
+                for (int column = 0; column < PuzzleModel.Size; column++)
+                {
+                    double left = column % 3 == 0 ? 2 : .5;
+                    double top = row % 3 == 0 ? 2 : .5;
+                    double right = column == 9 - 1 ? 2 : 0;
+                    double bottom = row == 9 - 1 ? 2 : 0;
+
+                    cellCollection.Add(new CellModel
+                    {
+                        Row = row,
+                        Column = column,
+                        Digit = null,
+                        SolverCandidates = [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                        PlayerCandidates = [],
+                        CellBorderThickness = new Thickness(left, top, right, bottom)
+                    });
+                }
+            }
+
+            return cellCollection;
         }
     }
 

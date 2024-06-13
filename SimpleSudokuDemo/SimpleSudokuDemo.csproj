@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SimpleSudoku.CommonLibrary\SimpleSudoku.CommonLibrary.csproj" />
+    <ProjectReference Include="..\SimpleSudoku.ConstraintLibrary\SimpleSudoku.ConstraintLibrary.csproj" />
   </ItemGroup>
 
 </Project>

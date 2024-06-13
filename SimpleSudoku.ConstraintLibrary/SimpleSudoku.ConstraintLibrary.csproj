@@ -8,8 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.2.2" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <ProjectReference Include="..\SimpleSudoku.CommonLibrary\SimpleSudoku.CommonLibrary.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:SimpleSudokuDemo.Views"
         xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:StartupViewModel}"
         mc:Ignorable="d"
-        Title="StartupView" Height="450" Width="800">
+        Title="StartupView" Height="500" Width="800" ResizeMode="NoResize">
     <Grid>
         <ContentControl Grid.Row="1" 
                         HorizontalAlignment="Stretch" 

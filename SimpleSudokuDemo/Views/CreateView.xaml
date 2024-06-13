@@ -5,11 +5,134 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SimpleSudokuDemo.Views" xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:CreateViewModel}"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800" Background="White">
+             d:DesignHeight="500" d:DesignWidth="800" Background="White">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="DefaultBorderColor" Color="Transparent" />
+        <SolidColorBrush x:Key="HighlightBorderColor" Color="Purple" />
+
+        <LinearGradientBrush x:Key="SelectedBorderColor" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="Purple" Offset="0" />
+            <GradientStop Color="MediumPurple" Offset="1" />
+        </LinearGradientBrush>
+    </UserControl.Resources>
     <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="251" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock FontSize="28" Foreground="Black" Text="CreateView" Margin="0 0 0 20" />
             <Button Content="Back" FontSize="28" Foreground="Black" Command="{ Binding NavigateToMenuViewCommand }" />
         </StackPanel>
+
+        <ListBox Grid.Column="1" ItemsSource="{Binding CellCollection}" Margin="10" 
+                 BorderBrush="Transparent" 
+                 BorderThickness="0"
+                 Background="Transparent"
+                 ScrollViewer.CanContentScroll="False"
+                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid IsItemsHost="True" Columns="9" Rows="9" Width="390" Height="390" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ListBoxItem}">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                    <Setter Property="Background" Value="White" />
+                    <Setter Property="BorderBrush" Value="Black" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="OpacityMask" Value="Black" />
+                    <Setter Property="Margin" Value="-.6" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                <Border Name="CellBorder" BorderBrush="Black" BorderThickness="{Binding CellBorderThickness}">
+                                    <ContentPresenter Margin=".5" />
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="3.5" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="3" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="3.5" />
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Corner Borders  -->
+                        <Border Name="TopLeftBorder" Grid.Row="0" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="TopRightBorder" Grid.Row="0" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="BottomLeftBorder" Grid.Row="2" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="BottomRightBorder" Grid.Row="2" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
+                        <!-- Edge Borders  -->
+                        <Border Name="LeftBorder" Grid.Row="1" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="TopBorder" Grid.Row="0" Grid.Column="1" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="RightBorder" Grid.Row="1" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
+                        <Border Name="BottomBorder" Grid.Row="2" Grid.Column="1" Background="{StaticResource DefaultBorderColor}" />
+
+                        <!-- Use an ItemsControl to display the candidates -->
+                        <ItemsControl Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              ItemsSource="{Binding SolverCandidates}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" 
+                                       Text="{Binding}" 
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Grid.Row="1" Grid.Column="1">
+                            <TextBlock Text="" FontSize="32"
+                               VerticalAlignment="Stretch" 
+                               HorizontalAlignment="Stretch" />
+                        </Border>
+                    </Grid>
+                    <DataTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TopLeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="TopRightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="BottomLeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="BottomRightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="LeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="RightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="TopBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                            <Setter TargetName="BottomBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
+                        </Trigger>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                            <Setter TargetName="TopLeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="TopRightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="BottomLeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="BottomRightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="LeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="RightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="TopBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                            <Setter TargetName="BottomBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+
+        </ListBox>
     </Grid>
 </UserControl>
