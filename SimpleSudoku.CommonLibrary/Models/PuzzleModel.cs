@@ -1,4 +1,5 @@
-﻿using SimpleSudoku.CommonLibrary.System;
+﻿using CommunityToolkit.Diagnostics;
+using SimpleSudoku.CommonLibrary.System;
 using System.Collections.ObjectModel;
 
 namespace SimpleSudoku.CommonLibrary.Models;
@@ -217,8 +218,9 @@ public class PuzzleModel : IPuzzleModel
     /// Retrieves the digits and candidate sets for each cell in the specified row.
     /// </summary>
     /// <param name="row">The row index (0-8) of the Sudoku grid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
-    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the row.</returns>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
+    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the row.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
     public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates)
     {
         for (int column = 0; column < Size; column++)
@@ -236,8 +238,9 @@ public class PuzzleModel : IPuzzleModel
     /// Retrieves the digits and candidate sets for each cell in the specified column.
     /// </summary>
     /// <param name="col">The column index (0-8) of the Sudoku grid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
-    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the column.</returns>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
+    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the column.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
     public IEnumerable<(int? Digits, HashSet<int> Candidates)>? GetColumn(int column, bool usePlayerCandidates)
     {
         for (int row = 0; row < Size; row++)
@@ -256,8 +259,9 @@ public class PuzzleModel : IPuzzleModel
     /// </summary>
     /// <param name="startRow">The starting row index (0-6) of the subgrid.</param>
     /// <param name="startCol">The starting column index (0-6) of the subgrid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates only.</param>
-    /// <returns>An enumerable of tuples containing the digit and candidate set for each cell in the subgrid.</returns>
+    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
+    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the subgrid.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
     public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates)
     {
         for (int row = startRow; row < startRow + 3; row++)
@@ -265,7 +269,6 @@ public class PuzzleModel : IPuzzleModel
             for (int column = startCol; column < startCol + 3; column++)
             {
                 ValidateRowColumn(row, column);
-
                 if (usePlayerCandidates)
                     yield return (Digits[row, column], PlayerCandidates[row, column]);
 
@@ -275,31 +278,51 @@ public class PuzzleModel : IPuzzleModel
     }
 
 
-    private void ValidateRowColumn(int row, int column)
+    private static void ValidateRowColumn(int row, int column)
     {
-        if (row < 0 || row >= Size || column < 0 || column >= Size)
-        {
-            throw new ArgumentOutOfRangeException(nameof(row), "Row and column must be between 0 and 8.");
-        }
+        ValidateRow(row);
+        ValidateColumn(column);
     }
-    private void ValidateDigit(int? digit)
+    private static void ValidateRow(int row)
+    {
+        Guard.IsBetweenOrEqualTo(row, 0, 8, nameof(row));
+    }
+    private static void ValidateColumn(int column)
+    {
+        Guard.IsBetweenOrEqualTo(column, 0, 8, nameof(column));
+    }
+    private static void ValidateDigit(int? digit)
     {
         // Check if the digit has a value and if it's outside the valid range (1-9)
-        if (digit.HasValue && (digit < 1 || digit > Size))
+        if (digit.HasValue)
         {
-            throw new ArgumentOutOfRangeException(nameof(digit), "Digit must be between 1 and 9.");
+            Guard.IsBetweenOrEqualTo(digit.Value, 1, 9, nameof(digit));
         }
     }
-    private void ValidateCandidate(int candidate)
+    private static void ValidateCandidate(int candidate)
     {
-        if (candidate < 1 || candidate > Size)
-        {
-            throw new ArgumentOutOfRangeException(nameof(candidate), "Candidate must be between 1 and 9.");
-        }
+        Guard.IsBetweenOrEqualTo(candidate, 1, 9, nameof(candidate));
     }
 
-    private (bool isValid, int conflictingRow, int conflictingColumn) IsValidInRow(int row, int digit)
+    /// <summary>
+    /// Checks if the specified digit is valid in the specified row.
+    /// </summary>
+    /// <param name="row">The column index (0-8) to check.</param>
+    /// <param name="digit">The digit to validate in the column (1-9).</param>
+    /// <returns>
+    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
+    /// <c>isValid</c> (boolean) indicating if the digit is valid,
+    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
+    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
+    /// </exception>
+    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInRow(int row, int digit)
     {
+        ValidateRow(row);
+        ValidateDigit(digit);
+
         for (int column = 0; column < Size; column++)
         {
             if (Digits[row, column] == digit)
@@ -309,8 +332,24 @@ public class PuzzleModel : IPuzzleModel
         }
         return (true, -1, -1);
     }
-    private (bool isValid, int conflictingRow, int conflictingColumn) IsValidInColumn(int column, int digit)
+    /// <summary>
+    /// Checks if the specified digit is valid in the specified column.
+    /// </summary>
+    /// <param name="column">The column index (0-8) to check.</param>
+    /// <param name="digit">The digit to validate in the column (1-9).</param>
+    /// <returns>
+    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
+    /// <c>isValid</c> (boolean) indicating if the digit is valid,
+    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
+    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
+    /// </exception>
+    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInColumn(int column, int digit)
     {
+        ValidateColumn(column);
+        ValidateDigit(digit);
         for (int row = 0; row < Size; row++)
         {
             if (Digits[row, column] == digit)
@@ -320,8 +359,26 @@ public class PuzzleModel : IPuzzleModel
         }
         return (true, -1, -1);
     }
-    private (bool isValid, int conflictingRow, int conflictingColumn) IsValidInSubgrid(int row, int column, int digit)
+    /// <summary>
+    /// Checks if the specified digit is valid in the specified 3x3 subgrid.
+    /// </summary>
+    /// <param name="row">The row index (0-8) of the cell to check.</param>
+    /// <param name="column">The column index (0-8) of the cell to check.</param>
+    /// <param name="digit">The digit to validate in the subgrid (1-9).</param>
+    /// <returns>
+    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
+    /// <c>isValid</c> (boolean) indicating if the digit is valid,
+    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
+    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
+    /// </exception>
+    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInSubgrid(int row, int column, int digit)
     {
+        ValidateRowColumn(row, column);
+        ValidateDigit(digit);
+
         int startRow = row / 3 * 3;
         int startColumn = column / 3 * 3;
         for (int r = startRow; r < startRow + 3; r++)
@@ -336,7 +393,23 @@ public class PuzzleModel : IPuzzleModel
         }
         return (true, -1, -1);
     }
-    private (bool isValid, int conflictingRow, int conflictingColumn) IsValidDigit(int row, int column, int digit)
+
+    /// <summary>
+    /// Checks if the specified digit is valid in the specified cell by validating the row, column, and subgrid.
+    /// </summary>
+    /// <param name="row">The row index (0-8) of the cell to check.</param>
+    /// <param name="column">The column index (0-8) of the cell to check.</param>
+    /// <param name="digit">The digit to validate in the cell (1-9).</param>
+    /// <returns>
+    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
+    /// <c>isValid</c> (boolean) indicating if the digit is valid,
+    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
+    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
+    /// </exception>
+    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidDigit(int row, int column, int digit)
     {
         var rowCheck = IsValidInRow(row, digit);
         if (!rowCheck.isValid) return rowCheck;
@@ -352,6 +425,7 @@ public class PuzzleModel : IPuzzleModel
 
     private void InitializeCandidates()
     {
+
         for (int row = 0; row < Size; row++)
         {
             for (int column = 0; column < Size; column++)

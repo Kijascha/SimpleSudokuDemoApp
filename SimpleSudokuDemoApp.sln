@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleSudoku.CommonLibrary"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleSudoku.ConstraintLibrary", "SimpleSudoku.ConstraintLibrary\SimpleSudoku.ConstraintLibrary.csproj", "{8DE17C52-7BC9-413F-B7FC-872CA3DE7E3C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleSudoku.SudokuSolver", "SimpleSudoku.SudokuSolver\SimpleSudoku.SudokuSolver.csproj", "{FC0FD142-EB4C-4DF2-8246-FFF9835B949C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{8DE17C52-7BC9-413F-B7FC-872CA3DE7E3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DE17C52-7BC9-413F-B7FC-872CA3DE7E3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DE17C52-7BC9-413F-B7FC-872CA3DE7E3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC0FD142-EB4C-4DF2-8246-FFF9835B949C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC0FD142-EB4C-4DF2-8246-FFF9835B949C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC0FD142-EB4C-4DF2-8246-FFF9835B949C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC0FD142-EB4C-4DF2-8246-FFF9835B949C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
