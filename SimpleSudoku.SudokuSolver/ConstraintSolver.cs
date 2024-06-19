@@ -16,10 +16,10 @@ public class ConstraintSolver(IConstraintManager constraintManager, IPuzzleModel
         _constraintManager.AddConstraint(new HiddenSingleConstraint(_puzzleModel));
 
 
-        _constraintManager.ConstraintFailed += _constraintManager_ConstraintFailed;
+        _constraintManager.ConstraintFailed += ConstraintManager_ConstraintFailed;
     }
 
-    private void _constraintManager_ConstraintFailed(object? sender, ConstraintErrorEventArgs e)
+    private void ConstraintManager_ConstraintFailed(object? sender, ConstraintErrorEventArgs e)
     {
         Debug.WriteLine(e.ErrorMessage);
     }

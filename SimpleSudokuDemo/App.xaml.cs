@@ -71,7 +71,7 @@ namespace SimpleSudokuDemo
             base.OnExit(e);
         }
 
-        private ObservableCollection<CellModel> InitializeCollection()
+        private static ObservableCollection<CellModel> InitializeCollection()
         {
             var cellCollection = new ObservableCollection<CellModel>();
 

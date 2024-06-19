@@ -14,7 +14,6 @@ public partial class CreateViewModel : ViewModel
     private readonly IConstraintSolver _constraintSolver;
 
     public IPuzzleModel Puzzle { get; set; }
-    private HashSet<(int Row, int Column, int Candidate)> _removedCandidates = [];
     [ObservableProperty] private CellModel? _selectedCell;
 
     public CreateViewModel(INavigationService navigationService,

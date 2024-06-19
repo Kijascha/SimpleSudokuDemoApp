@@ -2,14 +2,9 @@
 
 namespace SimpleSudoku.ConstraintLibrary.Constraints
 {
-    public class HiddenSingleConstraint : Constraint
+    public class HiddenSingleConstraint(IPuzzleModel puzzle) : Constraint
     {
-        private readonly IPuzzleModel _puzzle;
-
-        public HiddenSingleConstraint(IPuzzleModel puzzle)
-        {
-            _puzzle = puzzle;
-        }
+        private readonly IPuzzleModel _puzzle = puzzle;
 
         public bool FindHiddenSingles()
         {

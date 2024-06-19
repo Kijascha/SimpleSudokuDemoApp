@@ -2,14 +2,9 @@
 
 namespace SimpleSudoku.ConstraintLibrary.Constraints;
 
-public class NakedSingleConstraint : Constraint
+public class NakedSingleConstraint(IPuzzleModel puzzle) : Constraint
 {
-    private readonly IPuzzleModel _puzzle;
-
-    public NakedSingleConstraint(IPuzzleModel puzzle)
-    {
-        _puzzle = puzzle;
-    }
+    private readonly IPuzzleModel _puzzle = puzzle;
 
     private bool FindNakedSingles()
     {
@@ -21,8 +16,6 @@ public class NakedSingleConstraint : Constraint
             {
                 if (_puzzle.SolverCandidates[r, c].Count == 1)
                 {
-                    var b = r - r % 3 + (c / 3 * 1);
-
                     var candidate = _puzzle.SolverCandidates[r, c].Single();
                     _puzzle.UpdateDigit(r, c, candidate, false);
                     _puzzle.SolverCandidates[r, c].Clear();

@@ -13,7 +13,7 @@ public class PuzzleModel : IPuzzleModel
     public HashSet<int>[,] SolverCandidates { get; init; }
 
     private static HashSet<(int Row, int Column, int Candidate)> _removedCandidates = [];
-    private IEnumerable<CellModel>? cells;
+    private IEnumerable<CellModel>? _cells;
     /// <summary>
     /// Occurs when an attempt to set a digit violates Sudoku rules.
     /// Subscribers can handle this event to provide feedback to the user, such as highlighting the cell with the error.
@@ -29,7 +29,7 @@ public class PuzzleModel : IPuzzleModel
 
         InitializeCandidates();
     }
-    private readonly object lockObject = new object();
+    private readonly object _lockObject = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PuzzleModel"/> class using an observable collection of <see cref="CellModel"/>.
@@ -43,7 +43,7 @@ public class PuzzleModel : IPuzzleModel
             PlayerCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.PlayerCandidates);
             SolverCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.SolverCandidates);
         }
-        this.cells = cells;
+        _cells = cells;
     }
 
     /// <summary>
@@ -60,10 +60,10 @@ public class PuzzleModel : IPuzzleModel
     /// </remarks>
     public ObservableCollection<CellModel> ToObservableCollection()
     {
-        ObservableCollection<CellModel> collection = [.. this.cells];
+        ObservableCollection<CellModel> collection = [.. _cells];
 
-        if (this.cells != null)
-            foreach (var cell in this.cells)
+        if (_cells != null)
+            foreach (var cell in _cells)
             {
                 cell.Digit = Digits[cell.Row, cell.Column];
                 cell.PlayerCandidates = PlayerCandidates[cell.Row, cell.Column];
@@ -90,7 +90,7 @@ public class PuzzleModel : IPuzzleModel
     /// <exception cref="ArgumentException">Thrown if the digit is not between 1 and 9 (inclusive) or null.</exception>
     public void UpdateDigit(int row, int column, int? digit, bool validate = true)
     {
-        lock (lockObject)
+        lock (_lockObject)
         {
             ValidateRowColumn(row, column);
             ValidateDigit(digit);
@@ -140,7 +140,7 @@ public class PuzzleModel : IPuzzleModel
                     return;
                 }
 
-                if (Digits[row, column] == null && SolverCandidates[row, column].Count() > 0)
+                if (Digits[row, column] == null && SolverCandidates[row, column].Count > 0)
                 {
                     SudokuSuccess?.Invoke(this, new SudokuSuccessEventArgs(row, column));
                     return;
@@ -157,7 +157,7 @@ public class PuzzleModel : IPuzzleModel
 
     public void UpdateCandidate(int row, int column, int candidate, bool useSolverCandidates = true)
     {
-        lock (lockObject)
+        lock (_lockObject)
         {
             ValidateRowColumn(row, column);
             ValidateCandidate(candidate);
@@ -413,9 +413,6 @@ public class PuzzleModel : IPuzzleModel
         ValidateColumn(column);
         ValidateDigit(digit);
 
-        int currentRow = -1;
-        int currentColumn = -1;
-
         for (int row = 0; row < Size; row++)
         {
             if (Digits[row, column] == digit) return false;
@@ -441,9 +438,7 @@ public class PuzzleModel : IPuzzleModel
     }
     public bool IsValidDigit(int row, int column, int? digit)
     {
-        return !IsValidInRow(row, digit) ? false :
-                !IsValidInColumn(column, digit) ? false :
-                !IsValidInSubgrid(row, column, digit) ? false : true;
+        return IsValidInRow(row, digit) && IsValidInColumn(column, digit) && IsValidInSubgrid(row, column, digit);
     }
 
     private void InitializeCandidates()
@@ -453,8 +448,8 @@ public class PuzzleModel : IPuzzleModel
         {
             for (int column = 0; column < Size; column++)
             {
-                PlayerCandidates[row, column] = new HashSet<int>(); // player candidates should be empty at start and be set/update by the player
-                SolverCandidates[row, column] = new HashSet<int>();
+                PlayerCandidates[row, column] = []; // player candidates should be empty at start and be set/update by the player
+                SolverCandidates[row, column] = [];
                 for (int num = 1; num <= Size; num++)
                 {
                     SolverCandidates[row, column].Add(num);

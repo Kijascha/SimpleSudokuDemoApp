@@ -3,15 +3,9 @@ using SimpleSudokuDemo.Services;
 
 namespace SimpleSudokuDemo.ViewModels;
 
-public partial class ViewModel : ObservableObject
+public partial class ViewModel(INavigationService navigationService, IServiceProvider serviceProvider) : ObservableObject
 {
-    protected IServiceProvider ServiceProvider { get; init; }
+    protected IServiceProvider ServiceProvider { get; init; } = serviceProvider;
 
-    [ObservableProperty] private INavigationService _navigationService;
-
-    public ViewModel(INavigationService navigationService, IServiceProvider serviceProvider)
-    {
-        ServiceProvider = serviceProvider;
-        _navigationService = navigationService;
-    }
+    [ObservableProperty] private INavigationService _navigationService = navigationService;
 }
