@@ -6,7 +6,7 @@ namespace SimpleSudoku.ConstraintLibrary;
 /// <summary>
 /// Manages a collection of constraints and applies them iteratively.
 /// </summary>
-public class ConstraintManager
+public class ConstraintManager : IConstraintManager
 {
     private readonly ConcurrentDictionary<Constraint, Func<(bool, string?)>> _constraintCollection;
 

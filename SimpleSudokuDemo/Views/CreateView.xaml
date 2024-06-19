@@ -5,10 +5,49 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SimpleSudokuDemo.Views" 
              xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" 
+             xmlns:system="clr-namespace:SimpleSudoku.CommonLibrary.System;assembly=SimpleSudoku.CommonLibrary"
              d:DataContext="{d:DesignInstance Type=viewmodels:CreateViewModel}"
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="800" Background="White">
 
+    <UserControl.InputBindings>
+        <KeyBinding Key="NumPad1"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.One}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad2"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Two}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad3"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Three}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad4"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Four}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad5"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Five}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad6"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Six}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad7"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Seven}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad8"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Eight}"
+                    Modifiers="" />
+        <KeyBinding Key="NumPad9"  
+                        Command="{Binding AddDigitCommand}" 
+                        CommandParameter="{x:Static system:Digits.Nine}"
+                    Modifiers="" />
+    </UserControl.InputBindings>
     <UserControl.Resources>
         <SolidColorBrush x:Key="DefaultBorderColor" Color="Transparent" />
         <SolidColorBrush x:Key="HighlightBorderColor" Color="Purple" />
@@ -25,15 +64,17 @@
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock FontSize="28" Foreground="Black" Text="CreateView" Margin="0 0 0 20" />
+            <Button Content="Solve" FontSize="28" Foreground="Black" Command="{ Binding SolveCommand }" />
             <Button Content="Back" FontSize="28" Foreground="Black" Command="{ Binding NavigateToMenuViewCommand }" />
         </StackPanel>
 
-        <ListBox Grid.Column="1" ItemsSource="{Binding CellCollection}" Margin="10" 
+        <ListBox Grid.Column="1" ItemsSource="{Binding CellCollection, Mode=TwoWay}" Margin="10" 
                  BorderBrush="Transparent" 
                  BorderThickness="0"
                  Background="Transparent"
                  ScrollViewer.CanContentScroll="False"
-                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                 SelectedItem="{Binding SelectedCell, Mode=TwoWay}">
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <UniformGrid IsItemsHost="True" Columns="9" Rows="9" Width="390" Height="390" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
@@ -53,7 +94,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                                <Border Name="CellBorder" BorderBrush="Black" BorderThickness="{Binding CellBorderThickness}">
+                                <Border Name="CellBorder" Background="{Binding CellBackground}" BorderBrush="Black" BorderThickness="{Binding CellBorderThickness}">
                                     <ContentPresenter Margin=".5" />
                                 </Border>
                             </ControlTemplate>
@@ -104,9 +145,9 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <Border Grid.Row="1" Grid.Column="1">
-                            <TextBlock Text="" FontSize="32"
-                               VerticalAlignment="Stretch" 
+                        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <TextBlock Text="{Binding Digit}" FontSize="32"
+                               VerticalAlignment="Center" TextAlignment="Center"
                                HorizontalAlignment="Stretch" />
                         </Border>
                     </Grid>

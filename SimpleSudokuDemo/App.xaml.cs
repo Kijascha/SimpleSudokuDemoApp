@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SimpleSudoku.CommonLibrary.Models;
+using SimpleSudoku.SudokuSolver.Services;
 using SimpleSudokuDemo.Services;
 using SimpleSudokuDemo.ViewModels;
 using SimpleSudokuDemo.Views;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Media;
 
 namespace SimpleSudokuDemo
 {
@@ -29,6 +31,9 @@ namespace SimpleSudokuDemo
                     services.AddNavigationService();
                     services.AddSingleton((p) => p);
                     services.AddSingleton<IEnumerable<CellModel>, ObservableCollection<CellModel>>((p) => InitializeCollection());
+                    services.AddSingleton<IPuzzleModel, PuzzleModel>(p => new PuzzleModel(InitializeCollection()));
+
+                    services.AddConstraintSolver();
 
                     // Register Views and set DataContext for each one
                     services.AddSingleton(p => new StartupView()
@@ -86,7 +91,8 @@ namespace SimpleSudokuDemo
                         Digit = null,
                         SolverCandidates = [1, 2, 3, 4, 5, 6, 7, 8, 9],
                         PlayerCandidates = [],
-                        CellBorderThickness = new Thickness(left, top, right, bottom)
+                        CellBorderThickness = new Thickness(left, top, right, bottom),
+                        CellBackground = Brushes.White
                     });
                 }
             }
