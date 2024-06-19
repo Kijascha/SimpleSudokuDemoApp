@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Diagnostics;
 using SimpleSudoku.CommonLibrary.System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace SimpleSudoku.CommonLibrary.Models;
 
@@ -10,20 +11,21 @@ public class PuzzleModel : IPuzzleModel
     public int?[,] Digits { get; init; }
     public HashSet<int>[,] PlayerCandidates { get; init; }
     public HashSet<int>[,] SolverCandidates { get; init; }
-    private HashSet<(int row, int column, HashSet<int> candidates)> PlayerCandidatesBackup { get; set; }
 
+    private static HashSet<(int Row, int Column, int Candidate)> _removedCandidates = [];
+    private IEnumerable<CellModel>? cells;
     /// <summary>
     /// Occurs when an attempt to set a digit violates Sudoku rules.
     /// Subscribers can handle this event to provide feedback to the user, such as highlighting the cell with the error.
     /// </summary>
     public event EventHandler<SudokuErrorEventArgs>? SudokuError;
+    public event EventHandler<SudokuSuccessEventArgs>? SudokuSuccess;
 
     public PuzzleModel()
     {
         Digits = new int?[Size, Size];
         PlayerCandidates = new HashSet<int>[Size, Size];
         SolverCandidates = new HashSet<int>[Size, Size];
-        PlayerCandidatesBackup = new HashSet<(int, int, HashSet<int>)>();
 
         InitializeCandidates();
     }
@@ -33,7 +35,7 @@ public class PuzzleModel : IPuzzleModel
     /// Initializes a new instance of the <see cref="PuzzleModel"/> class using an observable collection of <see cref="CellModel"/>.
     /// </summary>
     /// <param name="cells">The observable collection of cells representing the puzzle state.</param>
-    public PuzzleModel(ObservableCollection<CellModel> cells) : this()
+    public PuzzleModel(IEnumerable<CellModel> cells) : this()
     {
         foreach (var cell in cells)
         {
@@ -41,6 +43,7 @@ public class PuzzleModel : IPuzzleModel
             PlayerCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.PlayerCandidates);
             SolverCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.SolverCandidates);
         }
+        this.cells = cells;
     }
 
     /// <summary>
@@ -57,22 +60,15 @@ public class PuzzleModel : IPuzzleModel
     /// </remarks>
     public ObservableCollection<CellModel> ToObservableCollection()
     {
-        var collection = new ObservableCollection<CellModel>();
+        ObservableCollection<CellModel> collection = [.. this.cells];
 
-        for (int row = 0; row < Size; row++)
-        {
-            for (int column = 0; column < Size; column++)
+        if (this.cells != null)
+            foreach (var cell in this.cells)
             {
-                collection.Add(new CellModel
-                {
-                    Row = row,
-                    Column = column,
-                    Digit = Digits[row, column],
-                    SolverCandidates = SolverCandidates[row, column],
-                    PlayerCandidates = PlayerCandidates[row, column]
-                });
+                cell.Digit = Digits[cell.Row, cell.Column];
+                cell.PlayerCandidates = PlayerCandidates[cell.Row, cell.Column];
+                cell.SolverCandidates = SolverCandidates[cell.Row, cell.Column];
             }
-        }
 
         return collection;
     }
@@ -99,58 +95,67 @@ public class PuzzleModel : IPuzzleModel
             ValidateRowColumn(row, column);
             ValidateDigit(digit);
 
-            if (validate && digit.HasValue)
+            (int? digit, int row, int column) previousDigit = (Digits[row, column], row, column);
+
+            var beforeCheck = IsValidDigit(row, column, digit) && Digits[row, column] == null;
+            var afterCheck = IsValidDigit(row, column, digit) && Digits[row, column] != null;
+
+            // Check if the same digit is being entered
+            if (Digits[row, column] == digit)
             {
-                var validationResult = IsValidDigit(row, column, digit.Value);
-                if (!validationResult.isValid)
+                // If the same digit is entered, remove it by setting to null
+                Digits[row, column] = null;
+
+                UpdateCandidatesInCurrentCell(row, column, clearCandidates: false);
+            }
+            else
+            {
+                // Otherwise, set the new digit
+                Digits[row, column] = digit;
+                UpdateCandidatesInCurrentCell(row, column, clearCandidates: true);
+            }
+
+            if (previousDigit.digit.HasValue)
+            {
+                // Restore candidates for the previous digit
+                UpdateCandidatesInRow(ref _removedCandidates, (row, column, null), previousDigit.digit);
+                UpdateCandidatesInColumn(ref _removedCandidates, (row, column, null), previousDigit.digit);
+                UpdateCandidatesInBox(ref _removedCandidates, (row, column, null), previousDigit.digit);
+            }
+
+            else if (digit.HasValue)
+            {
+                // Update candidates for the new digit
+                UpdateCandidatesInRow(ref _removedCandidates, (row, column, digit), null);
+                UpdateCandidatesInColumn(ref _removedCandidates, (row, column, digit), null);
+                UpdateCandidatesInBox(ref _removedCandidates, (row, column, digit), null);
+            }
+
+            if (validate)
+            {
+
+                if (beforeCheck)
                 {
-                    SudokuError?.Invoke(this, new SudokuErrorEventArgs(row, column, validationResult.conflictingRow, validationResult.conflictingColumn));
+                    SudokuSuccess?.Invoke(this, new SudokuSuccessEventArgs(row, column));
+                    return;
+                }
+
+                if (Digits[row, column] == null && SolverCandidates[row, column].Count() > 0)
+                {
+                    SudokuSuccess?.Invoke(this, new SudokuSuccessEventArgs(row, column));
+                    return;
+                }
+
+                if (Digits[row, column] != null && !IsValidDigit(row, column, Digits[row, column]))
+                {
+                    SudokuError?.Invoke(this, new SudokuErrorEventArgs(row, column));
                     return;
                 }
             }
-
-            if (digit.HasValue)
-            {
-                // Backup player candidates before clearing
-                PlayerCandidatesBackup.Add((row, column, new HashSet<int>(PlayerCandidates[row, column])));
-                // Clear candidates for this cell if a digit is set
-                SolverCandidates[row, column].Clear();
-                PlayerCandidates[row, column].Clear();
-            }
-            else
-            {
-                // Restore player candidates when digit is removed
-                var backup = PlayerCandidatesBackup.FirstOrDefault(b => b.row == row && b.column == column);
-                if (backup != default)
-                {
-                    PlayerCandidates[row, column] = new HashSet<int>(backup.candidates);
-                    PlayerCandidatesBackup.Remove(backup);
-                }
-                // Reset solver candidates for this cell
-                SolverCandidates[row, column].Clear();
-                for (int num = 1; num <= Size; num++)
-                {
-                    SolverCandidates[row, column].Add(num);
-                }
-            }
-
-            Digits[row, column] = digit;
         }
     }
 
-    /// <summary>
-    /// Sets or removes the specified candidate in the solver's candidate grid.
-    /// </summary>
-    /// <param name="row">The row number of the cell (0-8).</param>
-    /// <param name="column">The column number of the cell (0-8).</param>
-    /// <param name="candidate">The candidate value to set in the cell (1-9).</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    /// <exception cref="ArgumentException">Thrown if the candidate is not between 1 and 9 (inclusive).</exception>
-    /// <remarks>
-    /// If a digit is already set in the specified cell, this method does nothing as candidates should be ignored.
-    /// If the candidate already exists in the cell's candidate list, it is removed; otherwise, it is added.
-    /// </remarks>
-    public void UpdateSolverCandidate(int row, int column, int candidate)
+    public void UpdateCandidate(int row, int column, int candidate, bool useSolverCandidates = true)
     {
         lock (lockObject)
         {
@@ -163,54 +168,148 @@ public class PuzzleModel : IPuzzleModel
                 return;
             }
 
-            if (SolverCandidates[row, column].Contains(candidate))
+            if (useSolverCandidates)
             {
                 // Remove candidate if it exists
-                SolverCandidates[row, column].Remove(candidate);
+                if (!SolverCandidates[row, column].Remove(candidate))
+                {
+                    // Add candidate if it does not exist
+                    SolverCandidates[row, column].Add(candidate);
+                }
             }
             else
             {
-                // Add candidate if it does not exist
-                SolverCandidates[row, column].Add(candidate);
+                // Remove candidate if it exists
+                if (!PlayerCandidates[row, column].Remove(candidate))
+                {
+                    // Add candidate if it does not exist
+                    PlayerCandidates[row, column].Add(candidate);
+                }
             }
         }
     }
 
-    /// <summary>
-    /// Adds or removes a candidate in the player's candidate grid for the specified cell.
-    /// </summary>
-    /// <param name="row">The row number of the cell (0-8).</param>
-    /// <param name="column">The column number of the cell (0-8).</param>
-    /// <param name="candidate">The candidate value to add or remove (1-9).</param>
-    /// <remarks>
-    /// If a digit is already set in the specified cell, this method does nothing as candidates should be ignored.
-    /// If the candidate already exists in the cell's candidate list, it is removed; otherwise, it is added.
-    /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    /// <exception cref="ArgumentException">Thrown if the candidate is not between 1 and 9 (inclusive).</exception>
-    public void UpdatePlayerCandidate(int row, int column, int candidate)
+    private void UpdateCandidatesInRow(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
+        (int row, int col, int? digit) currentCell, int? candidateToRestore)
     {
-        lock (lockObject)
+        var currentRow = GetRow(currentCell.row, false);
+
+        if (currentCell.digit.HasValue)
         {
-            ValidateRowColumn(row, column);
-            ValidateCandidate(candidate);
+            foreach (var cell in currentRow)
+            {
+                if (!Digits[cell.Row, cell.Column].HasValue)
+                {
+                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
+                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
+                }
+            }
+        }
+        else if (candidateToRestore.HasValue)
+        {
+            var candidatesToRestore = removedCandidates.Where(c => c.Row == currentCell.row);
+            foreach (var candidate in candidatesToRestore)
+            {
+                if (candidate.Candidate == candidateToRestore && !Digits[candidate.Row, candidate.Column].HasValue)
+                {
+                    RestoreCandidate(candidate.Row, candidate.Column, candidate.Candidate);
+                }
+            }
+        }
+        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
+    }
 
-            if (Digits[row, column].HasValue)
-            {
-                // If a digit is already set, do nothing as candidates should be ignored
-                return;
-            }
+    private void UpdateCandidatesInColumn(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
+        (int row, int col, int? digit) currentCell, int? candidateToRestore)
+    {
 
-            if (PlayerCandidates[row, column].Contains(candidate))
+        var currentColumn = GetColumn(currentCell.col, false);
+
+        if (currentCell.digit.HasValue)
+        {
+            foreach (var cell in currentColumn)
             {
-                // Remove candidate if it exists
-                PlayerCandidates[row, column].Remove(candidate);
+                if (!Digits[cell.Row, cell.Column].HasValue)
+                {
+                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
+                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
+                }
             }
-            else
+        }
+        else if (candidateToRestore.HasValue)
+        {
+            var candidatesToRestore = removedCandidates.Where(c => c.Column == currentCell.col);
+            foreach (var candidate in candidatesToRestore)
             {
-                // Add candidate if it does not exist
-                PlayerCandidates[row, column].Add(candidate);
+                if (candidate.Candidate == candidateToRestore && !Digits[candidate.Row, candidate.Column].HasValue)
+                {
+                    RestoreCandidate(candidate.Row, candidate.Column, candidate.Candidate);
+                }
             }
+        }
+        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
+    }
+
+    private void UpdateCandidatesInBox(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
+        (int row, int col, int? digit) currentCell, int? candidateToRestore)
+    {
+        var currentBox = GetBox(currentCell.row, currentCell.col, false);
+
+        if (currentCell.digit.HasValue)
+        {
+            foreach (var cell in currentBox)
+            {
+                if (!Digits[cell.Row, cell.Column].HasValue)
+                {
+                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
+                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
+                }
+            }
+        }
+        else if (candidateToRestore.HasValue)
+        {
+            foreach (var cell in currentBox)
+            {
+                var candidateToRemove = removedCandidates.FirstOrDefault(c => c.Row == cell.Row &&
+                                                                               c.Column == cell.Column &&
+                                                                               c.Candidate == candidateToRestore);
+
+                if (candidateToRemove.Candidate == candidateToRestore && !Digits[cell.Row, cell.Column].HasValue)
+                {
+                    RestoreCandidate(candidateToRemove.Row, candidateToRemove.Column, candidateToRemove.Candidate);
+                }
+            }
+        }
+        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
+    }
+    private void UpdateCandidatesInCurrentCell(int row, int column, bool clearCandidates)
+    {
+        if (clearCandidates)
+        {
+            // Store current candidates in _removedCandidates before clearing
+            foreach (var candidate in SolverCandidates[row, column])
+            {
+                _removedCandidates.Add((row, column, candidate));
+            }
+            // Clear candidates in the current cell
+            SolverCandidates[row, column].Clear();
+        }
+        else
+        {
+            // Restore candidates in the current cell from removedCandidates
+            var candidatesToRestore = _removedCandidates.Where(c => c.Row == row && c.Column == column);
+            foreach (var (Row, Column, Candidate) in candidatesToRestore)
+            {
+                RestoreCandidate(Row, Column, Candidate);
+            }
+        }
+    }
+    private void RestoreCandidate(int row, int column, int candidate)
+    {
+        if (IsValidDigit(row, column, candidate))
+        {
+            SolverCandidates[row, column].Add(candidate);
+            _removedCandidates.Remove((row, column, candidate));
         }
     }
 
@@ -219,18 +318,14 @@ public class PuzzleModel : IPuzzleModel
     /// </summary>
     /// <param name="row">The row index (0-8) of the Sudoku grid.</param>
     /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
-    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the row.</returns>
+    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2, T3, T4}"/> containing the row, column, digit and candidate set for each cell in the row.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates)
+    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates)
     {
         for (int column = 0; column < Size; column++)
         {
             ValidateRowColumn(row, column);
-
-            if (usePlayerCandidates)
-                yield return (Digits[row, column], PlayerCandidates[row, column]);
-
-            yield return (Digits[row, column], SolverCandidates[row, column]);
+            yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
         }
     }
 
@@ -241,16 +336,12 @@ public class PuzzleModel : IPuzzleModel
     /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
     /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the column.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int? Digits, HashSet<int> Candidates)>? GetColumn(int column, bool usePlayerCandidates)
+    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetColumn(int column, bool usePlayerCandidates)
     {
         for (int row = 0; row < Size; row++)
         {
             ValidateRowColumn(row, column);
-
-            if (usePlayerCandidates)
-                yield return (Digits[row, column], PlayerCandidates[row, column]);
-
-            yield return (Digits[row, column], SolverCandidates[row, column]);
+            yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
         }
     }
 
@@ -262,17 +353,19 @@ public class PuzzleModel : IPuzzleModel
     /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
     /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the subgrid.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int? Digits, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates)
+    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates)
     {
-        for (int row = startRow; row < startRow + 3; row++)
+        // Calculate the top-left cell of the box based on startRow and startCol
+        int boxStartRow = (startRow / 3) * 3; // Example: If startRow is 3, boxStartRow should be 3
+        int boxStartCol = (startCol / 3) * 3; // Example: If startCol is 6, boxStartCol should be 6
+
+        // Iterate over the cells in the 3x3 box
+        for (int row = boxStartRow; row < boxStartRow + 3; row++)
         {
-            for (int column = startCol; column < startCol + 3; column++)
+            for (int column = boxStartCol; column < boxStartCol + 3; column++)
             {
                 ValidateRowColumn(row, column);
-                if (usePlayerCandidates)
-                    yield return (Digits[row, column], PlayerCandidates[row, column]);
-
-                yield return (Digits[row, column], SolverCandidates[row, column]);
+                yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
             }
         }
     }
@@ -304,123 +397,53 @@ public class PuzzleModel : IPuzzleModel
         Guard.IsBetweenOrEqualTo(candidate, 1, 9, nameof(candidate));
     }
 
-    /// <summary>
-    /// Checks if the specified digit is valid in the specified row.
-    /// </summary>
-    /// <param name="row">The column index (0-8) to check.</param>
-    /// <param name="digit">The digit to validate in the column (1-9).</param>
-    /// <returns>
-    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
-    /// <c>isValid</c> (boolean) indicating if the digit is valid,
-    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
-    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
-    /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
-    /// </exception>
-    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInRow(int row, int digit)
+    public bool IsValidInRow(int row, int? digit)
     {
         ValidateRow(row);
         ValidateDigit(digit);
 
         for (int column = 0; column < Size; column++)
         {
-            if (Digits[row, column] == digit)
-            {
-                return (false, row, column);
-            }
+            if (Digits[row, column] == digit) return false;
         }
-        return (true, -1, -1);
+        return true;
     }
-    /// <summary>
-    /// Checks if the specified digit is valid in the specified column.
-    /// </summary>
-    /// <param name="column">The column index (0-8) to check.</param>
-    /// <param name="digit">The digit to validate in the column (1-9).</param>
-    /// <returns>
-    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
-    /// <c>isValid</c> (boolean) indicating if the digit is valid,
-    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
-    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
-    /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
-    /// </exception>
-    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInColumn(int column, int digit)
+    public bool IsValidInColumn(int column, int? digit)
     {
         ValidateColumn(column);
         ValidateDigit(digit);
+
+        int currentRow = -1;
+        int currentColumn = -1;
+
         for (int row = 0; row < Size; row++)
         {
-            if (Digits[row, column] == digit)
-            {
-                return (false, row, column);
-            }
+            if (Digits[row, column] == digit) return false;
         }
-        return (true, -1, -1);
+        return true;
     }
-    /// <summary>
-    /// Checks if the specified digit is valid in the specified 3x3 subgrid.
-    /// </summary>
-    /// <param name="row">The row index (0-8) of the cell to check.</param>
-    /// <param name="column">The column index (0-8) of the cell to check.</param>
-    /// <param name="digit">The digit to validate in the subgrid (1-9).</param>
-    /// <returns>
-    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
-    /// <c>isValid</c> (boolean) indicating if the digit is valid,
-    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
-    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
-    /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
-    /// </exception>
-    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidInSubgrid(int row, int column, int digit)
+    public bool IsValidInSubgrid(int row, int column, int? digit)
     {
         ValidateRowColumn(row, column);
         ValidateDigit(digit);
 
         int startRow = row / 3 * 3;
         int startColumn = column / 3 * 3;
+
         for (int r = startRow; r < startRow + 3; r++)
         {
             for (int c = startColumn; c < startColumn + 3; c++)
             {
-                if (Digits[r, c] == digit)
-                {
-                    return (false, r, c);
-                }
+                if (Digits[r, c] == digit) return false;
             }
         }
-        return (true, -1, -1);
+        return true;
     }
-
-    /// <summary>
-    /// Checks if the specified digit is valid in the specified cell by validating the row, column, and subgrid.
-    /// </summary>
-    /// <param name="row">The row index (0-8) of the cell to check.</param>
-    /// <param name="column">The column index (0-8) of the cell to check.</param>
-    /// <param name="digit">The digit to validate in the cell (1-9).</param>
-    /// <returns>
-    /// A <see cref="ValueTuple{T1,T2,T3}"/> with three elements:
-    /// <c>isValid</c> (boolean) indicating if the digit is valid,
-    /// <c>conflictingRow</c> (integer) specifying the row of the conflict, and
-    /// <c>conflictingColumn</c> (integer) specifying the column of the conflict.
-    /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown if the row or column is out of the valid range (0-8) or if the digit is not between 1 and 9 (inclusive).
-    /// </exception>
-    public (bool isValid, int conflictingRow, int conflictingColumn) IsValidDigit(int row, int column, int digit)
+    public bool IsValidDigit(int row, int column, int? digit)
     {
-        var rowCheck = IsValidInRow(row, digit);
-        if (!rowCheck.isValid) return rowCheck;
-
-        var columnCheck = IsValidInColumn(column, digit);
-        if (!columnCheck.isValid) return columnCheck;
-
-        var subgridCheck = IsValidInSubgrid(row, column, digit);
-        if (!subgridCheck.isValid) return subgridCheck;
-
-        return (true, -1, -1);
+        return !IsValidInRow(row, digit) ? false :
+                !IsValidInColumn(column, digit) ? false :
+                !IsValidInSubgrid(row, column, digit) ? false : true;
     }
 
     private void InitializeCandidates()

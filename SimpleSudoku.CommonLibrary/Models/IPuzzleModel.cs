@@ -10,19 +10,19 @@ namespace SimpleSudoku.CommonLibrary.Models
         HashSet<int>[,] SolverCandidates { get; init; }
 
         event EventHandler<SudokuErrorEventArgs>? SudokuError;
+        public event EventHandler<SudokuSuccessEventArgs>? SudokuSuccess;
 
         ObservableCollection<CellModel> ToObservableCollection();
         void UpdateDigit(int row, int column, int? digit, bool validate = true);
-        void UpdatePlayerCandidate(int row, int column, int candidate);
-        void UpdateSolverCandidate(int row, int column, int candidate);
+        void UpdateCandidate(int row, int column, int candidate, bool useSolverCandidates = true);
 
-        (bool isValid, int conflictingRow, int conflictingColumn) IsValidInRow(int row, int digit);
-        (bool isValid, int conflictingRow, int conflictingColumn) IsValidInColumn(int column, int digit);
-        (bool isValid, int conflictingRow, int conflictingColumn) IsValidInSubgrid(int row, int column, int digit);
-        (bool isValid, int conflictingRow, int conflictingColumn) IsValidDigit(int row, int column, int digit);
+        bool IsValidInRow(int row, int? digit);
+        bool IsValidInColumn(int column, int? digit);
+        bool IsValidInSubgrid(int row, int column, int? digit);
+        bool IsValidDigit(int row, int column, int? digit);
 
-        IEnumerable<(int? Digits, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates);
-        IEnumerable<(int? Digits, HashSet<int> Candidates)>? GetColumn(int column, bool usePlayerCandidates);
-        IEnumerable<(int? Digits, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates);
+        IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates);
+        IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetColumn(int column, bool usePlayerCandidates);
+        IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates);
     }
 }
