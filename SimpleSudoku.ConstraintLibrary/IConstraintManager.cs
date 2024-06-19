@@ -8,6 +8,7 @@ namespace SimpleSudoku.ConstraintLibrary
 
         bool AddConstraint(Constraint constraint);
         bool ApplyAllConstraints(out bool anyConstraintApplied);
+        bool ApplyAllConstraintsV2(out bool anyConstraintApplied);
         bool ContainsConstraint(Constraint constraint);
         bool RemoveConstraint(Constraint constraint);
     }

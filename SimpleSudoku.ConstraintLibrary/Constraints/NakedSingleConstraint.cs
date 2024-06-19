@@ -36,6 +36,11 @@ public class NakedSingleConstraint : Constraint
     public override bool ApplyConstraint(out string errorMessage)
     {
         errorMessage = "";
-        return FindNakedSingles();
+        if (!FindNakedSingles())
+        {
+            errorMessage = "Couldn't find any Naked Singles!";
+            return false;
+        }
+        return true;
     }
 }

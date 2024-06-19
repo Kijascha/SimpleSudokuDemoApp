@@ -90,6 +90,44 @@ public class ConstraintManager : IConstraintManager
 
         return allConstraintsApplied;
     }
+    public bool ApplyAllConstraintsV2(out bool anyConstraintApplied)
+    {
+        anyConstraintApplied = false;
+        bool allConstraintsApplied = true;
+
+        foreach (var kvp in _constraintCollection)
+        {
+            var (constraint, applyFunc) = kvp;
+
+            do
+            {
+                var (success, errorMessage) = applyFunc();
+
+                if (!success)
+                {
+                    allConstraintsApplied = false;
+
+                    // Perform null check on errorMessage
+                    if (errorMessage != null)
+                    {
+                        OnConstraintFailed(new ConstraintErrorEventArgs(constraint, errorMessage));
+                    }
+                    else
+                    {
+                        OnConstraintFailed(new ConstraintErrorEventArgs(constraint, "Unknown error occurred."));
+                    }
+                }
+                else
+                {
+                    anyConstraintApplied = true;
+                }
+
+            } while (anyConstraintApplied);
+
+        }
+
+        return allConstraintsApplied;
+    }
 
     /// <summary>
     /// Raises the <see cref="ConstraintFailed"/> event.
