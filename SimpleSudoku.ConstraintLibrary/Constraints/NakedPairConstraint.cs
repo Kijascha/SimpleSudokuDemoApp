@@ -38,17 +38,18 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
     private bool FindNakedPairsInUnit(int row, int col, SearchUnitType searchUnitType)
     {
         // get matching candidate pairs within a 3x3 sudoku box
-        var result = GetMatchingCells(row, col, searchUnitType).Where(c => c.Candidates.Count == 2);
+        var matchingCells = GetMatchingPairsInUnit(row, col, searchUnitType)
+            .Where(c => c.Candidates.Count == 2);
 
         // handling the elimination of candidates of other cells within the box 
-        if (result is not null && result.Any())
+        if (matchingCells.Any())
         {
-            foreach (var matchingPair in result)
+            foreach (var matchingPair in matchingCells)
             {
                 var overlappingCells = _puzzle.GetUnit(row, col, searchUnitType)
-                .Where(c => c.Digit == null &&
-                c.Candidates.Overlaps(matchingPair.Candidates) &&
-                !c.Candidates.SetEquals(matchingPair.Candidates));
+                    .Where(cell => cell.Digit == null &&
+                                                                                cell.Candidates.Overlaps(matchingPair.Candidates) &&
+                                                                                !cell.Candidates.SetEquals(matchingPair.Candidates));
 
                 if (overlappingCells.Any())
                 {
@@ -63,14 +64,14 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
 
         return false;
     }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingCells(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
+    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
     {
-        SearchUnitType.Box => GetMatchingCellsInBox(row, col),
-        SearchUnitType.Row => GetMatchingCellsInRow(row, col),
-        SearchUnitType.Column => GetMatchingCellsInColumn(row, col),
+        SearchUnitType.Box => GetMatchingPairsInBox(row, col),
+        SearchUnitType.Row => GetMatchingPairsInRow(row, col),
+        SearchUnitType.Column => GetMatchingPairsInColumn(row, col),
         _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
     };
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingCellsInRow(int row, int col)
+    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInRow(int row, int col)
     {
         for (int c = 0; c < 9; c++)
         {
@@ -80,7 +81,7 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
             }
         }
     }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingCellsInColumn(int row, int col)
+    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInColumn(int row, int col)
     {
         for (int r = 0; r < 9; r++)
         {
@@ -90,7 +91,7 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
             }
         }
     }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingCellsInBox(int row, int col)
+    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInBox(int row, int col)
     {
         int startRow = row - row % 3;
         int startCol = col - col % 3;
