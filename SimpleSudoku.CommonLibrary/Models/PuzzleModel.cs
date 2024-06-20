@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Diagnostics;
 using SimpleSudoku.CommonLibrary.System;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 
 namespace SimpleSudoku.CommonLibrary.Models;
 
@@ -216,7 +215,6 @@ public class PuzzleModel : IPuzzleModel
                 }
             }
         }
-        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
     }
 
     private void UpdateCandidatesInColumn(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
@@ -247,7 +245,6 @@ public class PuzzleModel : IPuzzleModel
                 }
             }
         }
-        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
     }
 
     private void UpdateCandidatesInBox(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
@@ -280,7 +277,6 @@ public class PuzzleModel : IPuzzleModel
                 }
             }
         }
-        Debug.WriteLine($"removedCandidates.Count: {_removedCandidates.Count}");
     }
     private void UpdateCandidatesInCurrentCell(int row, int column, bool clearCandidates)
     {
@@ -369,8 +365,6 @@ public class PuzzleModel : IPuzzleModel
             }
         }
     }
-
-
     private static void ValidateRowColumn(int row, int column)
     {
         ValidateRow(row);
