@@ -45,7 +45,7 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
         {
             foreach (var matchingPair in result)
             {
-                var overlappingCells = GetSearchingUnit(row, col, searchUnitType)
+                var overlappingCells = _puzzle.GetUnit(row, col, searchUnitType)
                 .Where(c => c.Digit == null &&
                 c.Candidates.Overlaps(matchingPair.Candidates) &&
                 !c.Candidates.SetEquals(matchingPair.Candidates));
@@ -68,13 +68,6 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
         SearchUnitType.Box => GetMatchingCellsInBox(row, col),
         SearchUnitType.Row => GetMatchingCellsInRow(row, col),
         SearchUnitType.Column => GetMatchingCellsInColumn(row, col),
-        _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
-    };
-    private IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetSearchingUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
-    {
-        SearchUnitType.Box => _puzzle.GetBox(row, col, false),
-        SearchUnitType.Row => _puzzle.GetRow(row, false),
-        SearchUnitType.Column => _puzzle.GetColumn(col, false),
         _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
     };
     private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingCellsInRow(int row, int col)

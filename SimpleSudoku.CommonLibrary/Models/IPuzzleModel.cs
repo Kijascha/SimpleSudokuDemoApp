@@ -21,6 +21,7 @@ namespace SimpleSudoku.CommonLibrary.Models
         bool IsValidInSubgrid(int row, int column, int? digit);
         bool IsValidDigit(int row, int column, int? digit);
 
+        IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetUnit(int row, int col, SearchUnitType searchUnitType);
         IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates);
         IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetColumn(int column, bool usePlayerCandidates);
         IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates);

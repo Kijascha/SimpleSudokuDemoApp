@@ -308,7 +308,13 @@ public class PuzzleModel : IPuzzleModel
             _removedCandidates.Remove((row, column, candidate));
         }
     }
-
+    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
+    {
+        SearchUnitType.Box => GetBox(row, col, false),
+        SearchUnitType.Row => GetRow(row, false),
+        SearchUnitType.Column => GetColumn(col, false),
+        _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
+    };
     /// <summary>
     /// Retrieves the digits and candidate sets for each cell in the specified row.
     /// </summary>
