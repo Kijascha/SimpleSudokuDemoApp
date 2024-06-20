@@ -1,4 +1,5 @@
 ﻿using SimpleSudoku.CommonLibrary.Models;
+using SimpleSudoku.CommonLibrary.System;
 
 namespace SimpleSudoku.ConstraintLibrary.Constraints;
 
@@ -112,5 +113,5 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
             }
         }
     }
-    private enum SearchUnitType { Row, Column, Box }
+
 }
