@@ -1,4 +1,5 @@
 ﻿using SimpleSudoku.CommonLibrary.Models;
+using SimpleSudoku.CommonLibrary.System;
 
 namespace SimpleSudoku.ConstraintLibrary.Constraints
 {
@@ -6,36 +7,43 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
     {
         private readonly IPuzzleModel _puzzle = puzzle;
 
-        public bool FindHiddenSingles()
+        // TODO: redo this stuff, this doesn't work as intended
+        public bool FindHiddenSingles(SearchUnitType searchUnitType)
         {
             for (int row = 0; row < PuzzleModel.Size; row++)
             {
                 for (int col = 0; col < PuzzleModel.Size; col++)
                 {
-                    var rowCells = _puzzle.GetRow(row, false);
-                    var columnCells = _puzzle.GetColumn(col, false);
-                    var boxCells = _puzzle.GetBox(row, col, false);
+                    var unitCells = _puzzle.GetUnit(row, col, searchUnitType)
+                        .Where(cell => cell.Digit == null);
 
-                    (int Row, int Column, int? Digit, HashSet<int> Candidates) cell = (row, col, _puzzle.Digits[row, col], _puzzle.SolverCandidates[row, col]);
-
-                    if (cell.Digit == null)
+                    for (int candidate = 1; candidate <= PuzzleModel.Size; candidate++)
                     {
-                        var rowCandidates = rowCells.Where(c => c.Column != col).SelectMany(c => c.Candidates).ToHashSet();
-                        var colCandidates = columnCells.Where(c => c.Row != row).SelectMany(c => c.Candidates).ToHashSet();
-                        var boxCandidates = boxCells.Where(c => c.Row != row && c.Column != col).SelectMany(c => c.Candidates).ToHashSet();
+                        int count = 0;
 
-                        // Intersection of candidate sets
-                        var hiddenCandidates = cell.Candidates.Except(rowCandidates).Except(colCandidates).Except(boxCandidates);
-
-                        if (hiddenCandidates.Count() == 1)
+                        // count every candidate in the specified unit
+                        foreach (var unitCell in unitCells)
                         {
-                            var hiddenSingle = hiddenCandidates.Single();
+                            if (unitCell.Candidates.Contains(candidate))
+                                count++;
 
-                            // Further actions (e.g., setting the digit) can be performed here 
-                            _puzzle.SolverCandidates[row, col].Clear();
-                            _puzzle.SolverCandidates[row, col].Add(hiddenSingle);
+                            if (count > 1)
+                                break;
+                        }
 
-                            return true;
+                        // if a candidate appears only once in the unit then proceed
+                        if (count == 1)
+                        {
+                            var singleCandidate = unitCells.Where(c => c.Candidates.Contains(candidate)).Single();
+
+                            if (singleCandidate.Candidates.Contains(candidate))
+                            {
+                                // transform the hidden single into a naked single
+                                _puzzle.SolverCandidates[singleCandidate.Row, singleCandidate.Column].Clear();
+                                _puzzle.SolverCandidates[singleCandidate.Row, singleCandidate.Column].Add(candidate);
+
+                                return true;
+                            }
                         }
                     }
                 }
@@ -46,12 +54,12 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
         public override bool ApplyConstraint(out string errorMessage)
         {
             errorMessage = "";
-            if (!FindHiddenSingles())
+            if (FindHiddenSingles(SearchUnitType.Row) || FindHiddenSingles(SearchUnitType.Column) || FindHiddenSingles(SearchUnitType.Box))
             {
-                errorMessage = "Couldn't find any Hidden Singles!";
-                return false;
+                return true;
             }
-            return true;
+            errorMessage = "Couldn't find any Hidden Singles!";
+            return false;
         }
     }
 }
