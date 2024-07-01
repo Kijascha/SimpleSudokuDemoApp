@@ -17,7 +17,10 @@ public class ConstraintManager : IConstraintManager
     {
         _constraintCollection = new ConcurrentDictionary<Constraint, Func<(bool, string?)>>();
     }
-
+    public ICollection<Constraint> Constraints
+    {
+        get { return _constraintCollection.Keys; }
+    }
     /// <summary>
     /// Event raised when a constraint fails during application.
     /// </summary>

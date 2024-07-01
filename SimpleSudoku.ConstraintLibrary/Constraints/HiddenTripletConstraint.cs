@@ -6,7 +6,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
     public class HiddenTripletConstraint(IPuzzleModel puzzle) : Constraint
     {
         private readonly IPuzzleModel _puzzle = puzzle;
-
+        public static HashSet<((int Row, int Column, HashSet<int> Candidates), HashSet<int> Triplet)> HandledTriplets = [];
         public override bool ApplyConstraint(out string errorMessage)
         {
             var foundTriplet = FindHiddenTriplet();
@@ -25,6 +25,11 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                     foundTriplet |= FindTripletInUnit(row, col, SearchUnitType.Row);
                     foundTriplet |= FindTripletInUnit(row, col, SearchUnitType.Column);
                     foundTriplet |= FindTripletInUnit(row, col, SearchUnitType.Box);
+                    // Break the loop if a triplet is found and processed
+                    if (foundTriplet)
+                    {
+                        return true;
+                    }
                 }
             }
             return foundTriplet;
@@ -45,22 +50,52 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                         if (unitCells[i1].Candidates.Count == 0 || unitCells[i2].Candidates.Count == 0 || unitCells[i3].Candidates.Count == 0) continue;
 
                         // combine candidates from all 3 unitCells
-                        var combindedCandidates = new HashSet<int>(unitCells[i1].Candidates); // cell 1 canidates
-                        combindedCandidates.UnionWith(unitCells[i2].Candidates);  // cell 2 canidates
-                        combindedCandidates.UnionWith(unitCells[i3].Candidates);  // cell 3 canidates
+                        var combinedCandidates = new HashSet<int>(unitCells[i1].Candidates); // cell 1 canidates
+                        combinedCandidates.UnionWith(unitCells[i2].Candidates);  // cell 2 canidates
+                        combinedCandidates.UnionWith(unitCells[i3].Candidates);  // cell 3 canidates
 
                         // triplet found
-                        if (combindedCandidates.Count == 3)
+                        if (combinedCandidates.Count == 3)
                         {
-                            var unsolvedCells = unitCells.Where(c => c != unitCells[i1] && c != unitCells[i2] && c != unitCells[i3] && c.Digit == null);
+                            var unsolvedCells = unitCells.Where(c => c != unitCells[i1] && c != unitCells[i2] && c != unitCells[i3] && c.Digit == null).ToList();
 
-                            // handle removal from other valid cells in the unit
-                            foreach (var cell in unsolvedCells)
+                            if (unsolvedCells.Count > 0)
                             {
-                                _puzzle.SolverCandidates[cell.Row, cell.Column].ExceptWith(combindedCandidates);
+
+                                bool anyChanges = false;
+
+                                foreach (var cell in unsolvedCells)
+                                {
+                                    var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                    var relevantCandidates = cellCandidates.Intersect(combinedCandidates).ToHashSet();
+
+                                    if (relevantCandidates.Count > 0 && !HandledTriplets.Contains(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), combinedCandidates)))
+                                    {
+                                        var except = cellCandidates.Except(combinedCandidates).ToHashSet();
+
+                                        if (except.Count > 0)
+                                        {
+                                            cellCandidates.ExceptWith(combinedCandidates);
+                                            HandledTriplets.Add(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), combinedCandidates));
+                                            anyChanges = true;
+                                        }
+                                    }
+                                }
+
+                                if (anyChanges)
+                                {
+                                    return true;
+                                }
+                                else
+                                {
+                                    // If no changes were made, log this triplet to avoid reprocessing
+                                    foreach (var cell in unsolvedCells)
+                                    {
+                                        var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                        HandledTriplets.Add(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), combinedCandidates));
+                                    }
+                                }
                             }
-                            // found triplet
-                            return true;
                         }
                     }
                 }

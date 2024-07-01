@@ -13,8 +13,8 @@ public class ConstraintSolver(IConstraintManager constraintManager, IPuzzleModel
     public void InitializeConstraints()
     {
         _constraintManager.AddConstraint(new NakedSingleConstraint(_puzzleModel));
-        _constraintManager.AddConstraint(new HiddenSingleConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new NakedPairConstraint(_puzzleModel));
+        _constraintManager.AddConstraint(new HiddenSingleConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new HiddenTripletConstraint(_puzzleModel));
 
 
