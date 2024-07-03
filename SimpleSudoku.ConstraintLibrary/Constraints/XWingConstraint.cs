@@ -21,7 +21,6 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
         return removedSuccessfully;
     }
 
-
     private bool FindXWingInUnit(SearchUnitType searchUnitType, int candidate)
     {
         bool removedSuccessfully = false;
