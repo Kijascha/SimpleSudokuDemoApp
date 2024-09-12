@@ -28,7 +28,7 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
                     HashSet<int> hingeCandidates = new HashSet<int>(cellCandidates);
 
                     // Look for potential wings in rows, columns, and blocks.
-                    removedSuccessfully |= FindYWingV2(row, col, hingeCandidates, debugInfo);
+                    removedSuccessfully |= FindYWing(row, col, hingeCandidates);
                 }
             }
         }
@@ -44,19 +44,19 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
         return removedSuccessfully;
     }
 
-    private bool FindYWingV2(int hingeRow, int hingeCol, HashSet<int> hingeCandidates, StringBuilder debugInfo)
+    private bool FindYWing(int hingeRow, int hingeCol, HashSet<int> hingeCandidates)
     {
         bool removedSuccessfully = false;
 
         // Search for wing cells in the column, row, and box.
-        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Column, debugInfo);
-        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Row, debugInfo);
-        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Box, debugInfo);
+        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Column);
+        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Row);
+        removedSuccessfully |= SearchPotentialWings(hingeRow, hingeCol, hingeCandidates, SearchUnitType.Box);
 
         return removedSuccessfully;
     }
 
-    private bool SearchPotentialWings(int hingeRow, int hingeCol, HashSet<int> hingeCandidates, SearchUnitType unitType, StringBuilder debugInfo)
+    private bool SearchPotentialWings(int hingeRow, int hingeCol, HashSet<int> hingeCandidates, SearchUnitType unitType)
     {
         bool removedSuccessfully = false;
         var unit = _puzzle.GetUnit(hingeRow, hingeCol, unitType);
@@ -67,7 +67,7 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
             {
                 if (SharesOneCandidate(hingeCandidates, potentialWingCell.Candidates))
                 {
-                    removedSuccessfully |= TryFindYWingPartnerV2(hingeRow, hingeCol, potentialWingCell.Row, potentialWingCell.Column, hingeCandidates, potentialWingCell.Candidates, unitType, debugInfo);
+                    removedSuccessfully |= TryFindYWingPartner(hingeRow, hingeCol, potentialWingCell.Row, potentialWingCell.Column, hingeCandidates, potentialWingCell.Candidates, unitType);
                 }
             }
         }
@@ -75,7 +75,7 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
         return removedSuccessfully;
     }
 
-    private bool TryFindYWingPartnerV2(int hingeRow, int hingeCol, int wing1Row, int wing1Col, HashSet<int> hingeCandidates, HashSet<int> wing1Candidates, SearchUnitType wing1Unit, StringBuilder debugInfo)
+    private bool TryFindYWingPartner(int hingeRow, int hingeCol, int wing1Row, int wing1Col, HashSet<int> hingeCandidates, HashSet<int> wing1Candidates, SearchUnitType wing1Unit)
     {
         bool removedSuccessfully = false;
         // Search in other units depending on the current search context.
@@ -108,28 +108,11 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
 
                             if (_seenYWings.Contains(yWingPattern)) continue;
 
-                            debugInfo.AppendLine($"yWingPattern: {yWingPattern}");
-                            debugInfo.AppendLine($"Potential Hinge Cell: [{hingeRow}, {hingeCol}] with candidates {string.Join(", ", hingeCandidates)}");
-                            debugInfo.AppendLine($"Potential Wing 1 Cell: [{potentialWingCell.Row}, {potentialWingCell.Column}] with candidates {string.Join(", ", potentialWingCell.Candidates)}");
-                            debugInfo.AppendLine($"Potential Wing 2 Cell: [{potentialWingCell.Row}, {potentialWingCell.Column}] with candidates {string.Join(", ", potentialWingCell.Candidates)}");
-                            debugInfo.AppendLine();
-
                             // Add the current Y-Wing to the seen set.
                             _seenYWings.Add(yWingPattern);
 
                             // Perform candidate removal from affected cells.
-                            removedSuccessfully |= RemoveFromAffectedCells(hingeRow, hingeCol, wing1Row, wing1Col, potentialWingCell.Row, potentialWingCell.Column, sharedCandidate, debugInfo);
-
-                            if (removedSuccessfully)
-                            {
-                                // Add debug information about the Y-Wing found.
-                                debugInfo.AppendLine("Y-Wing Found:");
-                                debugInfo.AppendLine($"Hinge Cell: [{hingeRow}, {hingeCol}] with candidates {string.Join(", ", hingeCandidates)}");
-                                debugInfo.AppendLine($"Wing 1 Cell: [{wing1Row}, {wing1Col}] with candidates {string.Join(", ", wing1Candidates)}");
-                                debugInfo.AppendLine($"Wing 2 Cell: [{potentialWingCell.Row}, {potentialWingCell.Column}] with candidates {string.Join(", ", potentialWingCell.Candidates)}");
-                                debugInfo.AppendLine($"Shared Candidate {sharedCandidate}");
-                                debugInfo.AppendLine();
-                            }
+                            removedSuccessfully |= RemoveFromAffectedCells(hingeRow, hingeCol, wing1Row, wing1Col, potentialWingCell.Row, potentialWingCell.Column, sharedCandidate);
                         }
                     }
                 }
@@ -154,7 +137,7 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
         return candidateCounts.Values.All(count => count == 2);
     }
 
-    private bool RemoveFromAffectedCells(int hingeRow, int hingeCol, int wing1Row, int wing1Col, int wing2Row, int wing2Col, int sharedCandidate, StringBuilder debugInfo)
+    private bool RemoveFromAffectedCells(int hingeRow, int hingeCol, int wing1Row, int wing1Col, int wing2Row, int wing2Col, int sharedCandidate)
     {
         bool removedSuccessfully = false;
 
@@ -175,9 +158,6 @@ public class YWingConstraint(IPuzzleModel puzzle) : Constraint
                 {
                     _puzzle.SolverCandidates[row, col].Remove(sharedCandidate);
                     removedSuccessfully = true;
-
-                    // Add debug information about the candidate removal.
-                    debugInfo.AppendLine($"Removed candidate {sharedCandidate} from cell [{row}, {col}].");
                 }
             }
         }
