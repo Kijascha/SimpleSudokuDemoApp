@@ -14,9 +14,12 @@ public class ConstraintSolver(IConstraintManager constraintManager, IPuzzleModel
     {
         _constraintManager.AddConstraint(new NakedSingleConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new NakedPairConstraint(_puzzleModel));
+        _constraintManager.AddConstraint(new NakedQuadConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new HiddenSingleConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new HiddenTripletConstraint(_puzzleModel));
         _constraintManager.AddConstraint(new XWingConstraint(_puzzleModel));
+        _constraintManager.AddConstraint(new YWingConstraint(_puzzleModel));
+        _constraintManager.AddConstraint(new SkyscraperConstraint(_puzzleModel));
 
 
         _constraintManager.ConstraintFailed += ConstraintManager_ConstraintFailed;
