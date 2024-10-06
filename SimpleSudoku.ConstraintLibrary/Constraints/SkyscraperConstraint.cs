@@ -8,23 +8,23 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
     public class SkyscraperConstraint(IPuzzleModel puzzle) : Constraint
     {
         private readonly IPuzzleModel _puzzle = puzzle;
-
         public override bool ApplyConstraint(out string errorMessage)
         {
             StringBuilder debugInfo = new StringBuilder();
             bool foundValidSkyscraper = false;
 
-            // Iterate through all candidates (1-9)
-            for (int candidate = 1; candidate <= 9; candidate++)
+            // loop through each candidate
+            for (int candidate = 1; candidate <= PuzzleModel.Size; candidate++)
             {
-                debugInfo.AppendLine($"Checking candidate {candidate} for skyscraper pattern...");
-
-                // Find rows where the candidate appears exactly twice
-                var rowsWithTwoOccurrences = FindRowsWithExactlyTwoOccurrences(SearchUnitType.Row, candidate, debugInfo);
-
-                // Check for valid skyscraper patterns by comparing columns in those rows
-                foundValidSkyscraper |= CheckForSkyscraper(rowsWithTwoOccurrences, candidate, debugInfo);
+                if (FindSkyscraper(candidate, SearchUnitType.Row, debugInfo) ||
+                   FindSkyscraper(candidate, SearchUnitType.Column, debugInfo))
+                {
+                    foundValidSkyscraper = true;
+                    break;
+                }
             }
+
+            debugInfo.AppendLine($"\tfoundValidSkyscraper: {foundValidSkyscraper}");
 
             errorMessage = foundValidSkyscraper ? "" : "No valid skyscrapers found.";
 
@@ -34,83 +34,86 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
             return foundValidSkyscraper;
         }
 
-        private List<int> FindRowsWithExactlyTwoOccurrences(SearchUnitType searchUnitType, int candidate, StringBuilder debugInfo)
+        private bool FindSkyscraper(int candidate, SearchUnitType searchUnitType, StringBuilder debugInfo)
         {
-            List<int> rowsWithTwoOccurrences = new List<int>();
+            HashSet<(int unitNumber, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> unit)> unit = [];
 
-            // Loop through each row
-            for (int row = 0; row < PuzzleModel.Size; row++)
+            for (int unitIndex = 0; unitIndex < PuzzleModel.Size; unitIndex++)
             {
-                int occurrenceCount = CountOccurrencesInUnit(searchUnitType, row, candidate);
-
-                // Collect rows where candidate appears exactly twice
-                if (occurrenceCount == 2)
+                if (ConstraintHelper.CountOccurrencesInUnit(_puzzle, searchUnitType, unitIndex, candidate) == 2)
                 {
-                    var rowUnit = _puzzle.GetRow(row, false)
-                        .Where(x => x.Candidates.Contains(candidate)).ToList();
+                    var unitToAdd = (searchUnitType == SearchUnitType.Row) ? _puzzle.GetRow(unitIndex, false) :
+                                                                                            (searchUnitType == SearchUnitType.Column) ? _puzzle.GetColumn(unitIndex, false) : null;
 
-                    if (GetBlockIndex(rowUnit[0].Row, rowUnit[0].Column) != GetBlockIndex(rowUnit[1].Row, rowUnit[1].Column))
-                    {
-                        rowsWithTwoOccurrences.Add(row);
-                        debugInfo.AppendLine($"Candidate {candidate} appears exactly twice in row {row}. Count: {rowUnit.Count()}x");
-                    }
+                    if (unitToAdd != null)
+                        unit.Add((unitIndex, unitToAdd));
                 }
             }
 
-            return rowsWithTwoOccurrences;
-        }
-
-        private bool CheckForSkyscraper(List<int> rowsWithTwoOccurrences, int candidate, StringBuilder debugInfo)
-        {
-            bool foundSkyscraper = false;
-
-            // Compare each pair of rows where the candidate appears exactly twice
-            for (int i = 0; i < rowsWithTwoOccurrences.Count - 1; i++)
+            // Now check weak links in both row pairs
+            for (int u1 = 0; u1 < unit.Count - 1; u1++)
             {
-                for (int j = i + 1; j < rowsWithTwoOccurrences.Count; j++)
+                for (int u2 = u1 + 1; u2 < unit.Count; u2++)
                 {
-                    var row1 = _puzzle.GetRow(rowsWithTwoOccurrences[i], false)
-                        .Where(x => x.Candidates.Contains(candidate));
-                    var row2 = _puzzle.GetRow(rowsWithTwoOccurrences[j], false)
-                        .Where(x => x.Candidates.Contains(candidate));
+                    var unit1 = unit.ToList()[u1].unit;
+                    var unit2 = unit.ToList()[u2].unit;
 
-                    for (int col = 0; col < PuzzleModel.Size; col++)
+                    var filteredUnit1 = unit1.Where(c => c.Candidates.Contains(candidate));
+                    var selectedUnit1 = (searchUnitType == SearchUnitType.Row) ? filteredUnit1.Select(c => c.Column) :
+                                        (searchUnitType == SearchUnitType.Column) ? filteredUnit1.Select(c => c.Row) : null;
+
+                    var filteredUnit2 = unit2.Where(c => c.Candidates.Contains(candidate));
+                    var selectedUnit2 = (searchUnitType == SearchUnitType.Row) ? filteredUnit2.Select(c => c.Column) :
+                                        (searchUnitType == SearchUnitType.Column) ? filteredUnit2.Select(c => c.Row) : null;
+
+                    if (selectedUnit1 != null && selectedUnit2 != null)
                     {
-                        var intersectCol = _puzzle.GetColumn(col, false);
+                        var intersectingUnit = selectedUnit1.Intersect(selectedUnit2);
 
-                        var inRow1 = row1.Any(c => c.Column == col && c.Candidates.Contains(candidate));
-                        var inRow2 = row2.Any(c => c.Column == col && c.Candidates.Contains(candidate));
 
-                        if (inRow1 && inRow2)
+                        if (intersectingUnit.Count() > 0)
                         {
-                            if (GetBlockIndex(rowsWithTwoOccurrences[i], col) != GetBlockIndex(rowsWithTwoOccurrences[j], col))
+                            foreach (var weakLinkUnit in intersectingUnit)
                             {
-                                debugInfo.AppendLine($"\tResult1: Intersection found at cells ({rowsWithTwoOccurrences[i]}, {col}) and ({rowsWithTwoOccurrences[j]}, {col}).");
+                                // Get the cells in the intersecting column that contain the candidate in both rows
+                                var candidatesInRow1 = unit1.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit);
+                                var candidatesInRow2 = unit2.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit);
 
-                                var roofCellInRow1 = row1
-                                    .Where(c => c.Column != col && c.Candidates.Contains(candidate));
-                                var roofCellInRow2 = row2
-                                    .Where(c => c.Column != col && c.Candidates.Contains(candidate));
+                                var candidatesInUnit1 = (searchUnitType == SearchUnitType.Row) ? unit1.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
+                                                                                            (searchUnitType == SearchUnitType.Column) ? unit1.Where(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) : null;
+                                var candidatesInUnit2 = (searchUnitType == SearchUnitType.Row) ? unit2.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
+                                                                                            (searchUnitType == SearchUnitType.Column) ? unit2.Where(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) : null;
 
-                                if (roofCellInRow1.Count() == 1 && roofCellInRow2.Count() == 1)
+                                if (candidatesInUnit1 != null && candidatesInUnit2 != null)
                                 {
-                                    int roofRow1 = roofCellInRow1.First().Row;
-                                    int roofCol1 = roofCellInRow1.First().Column;
-                                    int roofRow2 = roofCellInRow2.First().Row;
-                                    int roofCol2 = roofCellInRow2.First().Column;
+                                    var candidateInUnit1 = candidatesInUnit1.First();
+                                    var candidateInUnit2 = candidatesInUnit2.First();
 
-                                    debugInfo.AppendLine($"\t\tRoof Cell 1 found at row {roofRow1}, column {roofCol1}.");
-                                    debugInfo.AppendLine($"\t\tRoof Cell 2 found at row {roofRow2}, column {roofCol2}.");
+                                    var roofCellResult1 = (searchUnitType == SearchUnitType.Row) ? unit1.Where(c => c.Candidates.Contains(candidate) && (c.Column != candidateInUnit1.Column)) :
+                                                                                            (searchUnitType == SearchUnitType.Column) ? unit1.Where(c => c.Candidates.Contains(candidate) && (c.Row != candidateInUnit1.Row)) : null;
+                                    var roofCellResult2 = (searchUnitType == SearchUnitType.Row) ? unit2.Where(c => c.Candidates.Contains(candidate) && (c.Column != candidateInUnit2.Column)) :
+                                                                                            (searchUnitType == SearchUnitType.Column) ? unit2.Where(c => c.Candidates.Contains(candidate) && (c.Row != candidateInUnit2.Row)) : null;
 
-                                    // Check if the roof cells are in neighboring blocks
-                                    if (AreBlocksAdjacent((rowsWithTwoOccurrences[i], col), (rowsWithTwoOccurrences[j], col), (roofRow1, roofCol1), (roofRow2, roofCol2)))
+                                    if (roofCellResult1 != null && roofCellResult2 != null)
                                     {
-                                        foundSkyscraper = true;
-                                        debugInfo.AppendLine($"\t\tValid Skyscraper: Roof cells are in neighboring blocks.");
+                                        var roofCell1 = roofCellResult1.First();
+                                        var roofCell2 = roofCellResult2.First();
 
-                                        // Find cells that see both roof cells and remove the candidate
-                                        RemoveCandidateFromCommonVisibleCells(roofRow1, roofCol1, roofRow2, roofCol2, candidate, debugInfo);
+                                        // Get the blocks of the strong linked candidates in row1 and row2
+                                        int block1 = ConstraintHelper.GetBlockIndex(candidateInUnit1.Row, candidateInUnit1.Column);
+                                        int block2 = ConstraintHelper.GetBlockIndex(candidateInUnit2.Row, candidateInUnit2.Column);
+                                        int block3 = ConstraintHelper.GetBlockIndex(roofCell1.Row, roofCell1.Column);
+                                        int block4 = ConstraintHelper.GetBlockIndex(roofCell2.Row, roofCell2.Column);
 
+                                        var isRowCheck = (searchUnitType == SearchUnitType.Row) ? true : false;
+
+                                        // Check if the roof forms a valid rectangular structure
+                                        if (IsValidSkyscraper(isRowCheck, candidateInUnit1.Row, candidateInUnit1.Column, candidateInUnit2.Row, candidateInUnit2.Column, roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column))
+                                        {
+                                            // Remove the candidate from cells that are seen by both roof cells and return true if successfull removed
+                                            if (RemoveCandidate(roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column, candidate))
+                                                return true;
+                                        }
                                     }
                                 }
                             }
@@ -118,81 +121,53 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                     }
                 }
             }
-
-            return foundSkyscraper;
+            return false;
         }
 
-        // Function to remove the candidate from cells that see both roof cells
-        private void RemoveCandidateFromCommonVisibleCells(int roofRow1, int roofCol1, int roofRow2, int roofCol2, int candidate, StringBuilder debugInfo)
+        private bool RemoveCandidate(int roofCell1Row, int roofCell1Col, int roofCell2Row, int roofCell2Col, int candidate)
         {
-            // Iterate through all cells in the puzzle
-            for (int row = 0; row < PuzzleModel.Size; row++)
+            // loop through the puzzle
+            for (int r = 0; r < PuzzleModel.Size; r++)
             {
-                for (int col = 0; col < PuzzleModel.Size; col++)
+                for (int c = 0; c < PuzzleModel.Size; c++)
                 {
-                    // Check if the current cell "sees" both roof cells
-                    if (SeesBothRoofCells(row, col, roofRow1, roofCol1, roofRow2, roofCol2))
+                    // only handle cells which contains the candidate
+                    if (_puzzle.SolverCandidates[r, c].Contains(candidate) && SeesBothRoofCells(r, c, roofCell1Row, roofCell1Col, roofCell2Row, roofCell2Col))
                     {
-                        // If the cell contains the candidate, remove it
-                        if (_puzzle.SolverCandidates[row, col].Contains(candidate))
-                        {
-                            _puzzle.SolverCandidates[row, col].Remove(candidate);
-                            debugInfo.AppendLine($"\tRemoved candidate {candidate} from cell ({row}, {col}) as it sees both roof cells.");
-                        }
+                        _puzzle.SolverCandidates[r, c].Remove(candidate);
+                        return true;
                     }
                 }
             }
+            return false;
         }
 
         // Helper function to check if a cell "sees" both roof cells
-        private bool SeesBothRoofCells(int row, int col, int roofRow1, int roofCol1, int roofRow2, int roofCol2)
+        private static bool SeesBothRoofCells(int row, int col, int roofRow1, int roofCol1, int roofRow2, int roofCol2)
         {
             // A cell "sees" another cell if it's in the same row, column, or block
-            return IsInSameUnit(row, col, roofRow1, roofCol1) && IsInSameUnit(row, col, roofRow2, roofCol2);
+            return ConstraintHelper.IsInSameUnit(row, col, roofRow1, roofCol1) && ConstraintHelper.IsInSameUnit(row, col, roofRow2, roofCol2);
         }
-        // Helper function to check if two blocks are adjacent
-        private bool AreBlocksAdjacent((int row, int col) baseCell1, (int row, int col) baseCell2, (int row, int col) roofCell1, (int row, int col) roofCell2)
+        // Final method to check for both rectangular shapes and distinct boxes
+        public static bool IsValidSkyscraper(bool isRowCheck, int baseRow1, int baseCol1, int baseRow2, int baseCol2, int roofRow1, int roofCol1, int roofRow2, int roofCol2)
         {
-            // Get the block indices for each of the cells
-            int baseBlock1 = GetBlockIndex(baseCell1.row, baseCell1.col);
-            int baseBlock2 = GetBlockIndex(baseCell2.row, baseCell2.col);
-            int roofBlock1 = GetBlockIndex(roofCell1.row, roofCell1.col);
-            int roofBlock2 = GetBlockIndex(roofCell2.row, roofCell2.col);
 
-            // Extract row and column indices of the blocks
-            int baseBlock1Row = baseBlock1 / 3;
-            int baseBlock1Col = baseBlock1 % 3;
-            int baseBlock2Row = baseBlock2 / 3;
-            int baseBlock2Col = baseBlock2 % 3;
-            int roofBlock1Row = roofBlock1 / 3;
-            int roofBlock1Col = roofBlock1 % 3;
-            int roofBlock2Row = roofBlock2 / 3;
-            int roofBlock2Col = roofBlock2 % 3;
+            // Then ensure it spans at least 4 distinct 3x3 boxes
+            bool hasDistinctBoxes = ConstraintHelper.IsValidSkyscraperWithDistinctBoxes(baseRow1, baseCol1, baseRow2, baseCol2, roofRow1, roofCol1, roofRow2, roofCol2);
 
-            // Check if the roof and base cells in both rows are in adjacent blocks
-            bool isRoofBasePair1Adjacent = Math.Abs(baseBlock1Row - roofBlock1Row) <= 1 && Math.Abs(baseBlock1Col - roofBlock1Col) <= 1;
-            bool isRoofBasePair2Adjacent = Math.Abs(baseBlock2Row - roofBlock2Row) <= 1 && Math.Abs(baseBlock2Col - roofBlock2Col) <= 1;
+            if (hasDistinctBoxes)
+            {
+                // First check if the skyscraper forms a valid rectangular subgrid (2x2, 2x3, or 3x2)
+                bool isRectangular = ConstraintHelper.IsRectangularSubgridV2(
+                    ConstraintHelper.GetBlockIndex(baseRow1, baseCol1),
+                    ConstraintHelper.GetBlockIndex(baseRow2, baseCol2),
+                    ConstraintHelper.GetBlockIndex(roofRow1, roofCol1),
+                    ConstraintHelper.GetBlockIndex(roofRow2, roofCol2), isRowCheck);
 
-            // Both roof-base pairs must be adjacent
-            return isRoofBasePair1Adjacent && isRoofBasePair2Adjacent;
-        }
-        private int CountOccurrencesInUnit(SearchUnitType searchUnitType, int unit, int candidate)
-        {
-            int count = 0;
-
-            // Count occurrences of candidate in the row or column using helper methods
-            var unitCandidates = _puzzle.GetRow(unit, false).Where(cell => cell.Candidates.Contains(candidate));
-            count = unitCandidates.Count();
-
-            return count;
-        }
-        private bool IsInSameUnit(int row1, int col1, int row2, int col2)
-        {
-            return row1 == row2 || col1 == col2 || GetBlockIndex(row1, col1) == GetBlockIndex(row2, col2);
-        }
-        private int GetBlockIndex(int row, int col)
-        {
-            return (row / 3) * 3 + (col / 3);
+                // The skyscraper is valid only if both conditions are satisfied
+                return isRectangular && hasDistinctBoxes;
+            }
+            return false;
         }
     }
 }
