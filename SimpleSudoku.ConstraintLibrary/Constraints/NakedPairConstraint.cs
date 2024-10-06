@@ -38,7 +38,7 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
     private bool FindNakedPairsInUnit(int row, int col, SearchUnitType searchUnitType)
     {
         // get matching candidate pairs within a 3x3 sudoku box
-        var matchingCells = GetMatchingPairsInUnit(row, col, searchUnitType)
+        var matchingCells = ConstraintHelper.GetMatchingPairsInUnit(_puzzle, row, col, searchUnitType)
             .Where(c => c.Candidates.Count == 2);
 
         // handling the elimination of candidates of other cells within the box 
@@ -64,48 +64,4 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
 
         return false;
     }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
-    {
-        SearchUnitType.Box => GetMatchingPairsInBox(row, col),
-        SearchUnitType.Row => GetMatchingPairsInRow(row, col),
-        SearchUnitType.Column => GetMatchingPairsInColumn(row, col),
-        _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
-    };
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInRow(int row, int col)
-    {
-        for (int c = 0; c < 9; c++)
-        {
-            if (c != col && _puzzle.Digits[row, c] == null && _puzzle.SolverCandidates[row, c].SetEquals(_puzzle.SolverCandidates[row, col]))
-            {
-                yield return (row, c, _puzzle.SolverCandidates[row, c]);
-            }
-        }
-    }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInColumn(int row, int col)
-    {
-        for (int r = 0; r < 9; r++)
-        {
-            if (r != row && _puzzle.Digits[r, col] == null && _puzzle.SolverCandidates[r, col].SetEquals(_puzzle.SolverCandidates[row, col]))
-            {
-                yield return (r, col, _puzzle.SolverCandidates[r, col]);
-            }
-        }
-    }
-    private IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInBox(int row, int col)
-    {
-        int startRow = row - row % 3;
-        int startCol = col - col % 3;
-
-        for (int r = startRow; r < startRow + 3; r++)
-        {
-            for (int c = startCol; c < startCol + 3; c++)
-            {
-                if ((r != row || c != col) && _puzzle.Digits[r, c] == null && _puzzle.SolverCandidates[r, c].SetEquals(_puzzle.SolverCandidates[row, col]))
-                {
-                    yield return (r, c, _puzzle.SolverCandidates[r, c]);
-                }
-            }
-        }
-    }
-
 }
