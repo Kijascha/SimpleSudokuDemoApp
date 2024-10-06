@@ -30,7 +30,7 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
             for (int unitA2 = unitA1 + 1; unitA2 < PuzzleModel.Size; unitA2++)
             {
                 // Check if both columns contain the target candidate
-                if (CountOccurrencesInUnit(searchUnitType, unitA1, candidate) == 2 && CountOccurrencesInUnit(searchUnitType, unitA2, candidate) == 2)
+                if (ConstraintHelper.CountOccurrencesInUnit(_puzzle, searchUnitType, unitA1, candidate) == 2 && ConstraintHelper.CountOccurrencesInUnit(_puzzle, searchUnitType, unitA2, candidate) == 2)
                 {
                     for (int unitB1 = 0; unitB1 < PuzzleModel.Size - 1; unitB1++)
                     {
@@ -96,31 +96,5 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
             }
         }
         return removedSuccessfully;
-    }
-
-    private int CountOccurrencesInUnit(SearchUnitType searchUnitType, int unitA, int candidate)
-    {
-        int count = 0;
-        for (int unitB = 0; unitB < PuzzleModel.Size; unitB++)
-        {
-            switch (searchUnitType)
-            {
-                case SearchUnitType.Row:
-                    if (_puzzle.SolverCandidates[unitA, unitB].Contains(candidate))
-                    {
-                        count++;
-                    }
-                    break;
-                case SearchUnitType.Column:
-                    if (_puzzle.SolverCandidates[unitB, unitA].Contains(candidate))
-                    {
-                        count++;
-                    }
-                    break;
-                default:
-                    throw new NotSupportedException("This SearchUnitType is currently not supported!");
-            }
-        }
-        return count;
     }
 }
