@@ -26,6 +26,8 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
             debugInfo.AppendLine($"\tfoundValidSkyscraper: {foundValidSkyscraper}");
 
+            //TODO Bug fixes fehlerhafte erkennung in anderen puzzles !!!!!!!!
+
             errorMessage = foundValidSkyscraper ? "" : "No valid skyscrapers found.";
 
             // Output the accumulated debug information
@@ -110,8 +112,10 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                                         // Check if the roof forms a valid rectangular structure
                                         if (IsValidSkyscraper(isRowCheck, candidateInUnit1.Row, candidateInUnit1.Column, candidateInUnit2.Row, candidateInUnit2.Column, roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column))
                                         {
+                                            //debugInfo.AppendLine($"Possible valid Skyscraper framed by base cells in [r1: {candidateInUnit1.Row} c1: {candidateInUnit1.Column} r2: {candidateInUnit2.Row} c2: {candidateInUnit2.Column}] " +
+                                            //    $"and roof cells in [r1: {roofCell1.Row} c1: {roofCell1.Column} r2: {roofCell2.Row} c2: {roofCell2.Column}]");
                                             // Remove the candidate from cells that are seen by both roof cells and return true if successfull removed
-                                            if (RemoveCandidate(roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column, candidate))
+                                            if (RemoveCandidate(roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column, candidate, debugInfo))
                                                 return true;
                                         }
                                     }
@@ -124,7 +128,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
             return false;
         }
 
-        private bool RemoveCandidate(int roofCell1Row, int roofCell1Col, int roofCell2Row, int roofCell2Col, int candidate)
+        private bool RemoveCandidate(int roofCell1Row, int roofCell1Col, int roofCell2Row, int roofCell2Col, int candidate, StringBuilder debugInfo)
         {
             // loop through the puzzle
             for (int r = 0; r < PuzzleModel.Size; r++)
@@ -132,8 +136,10 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                 for (int c = 0; c < PuzzleModel.Size; c++)
                 {
                     // only handle cells which contains the candidate
-                    if (_puzzle.SolverCandidates[r, c].Contains(candidate) && SeesBothRoofCells(r, c, roofCell1Row, roofCell1Col, roofCell2Row, roofCell2Col))
+                    if (_puzzle.SolverCandidates[r, c].Contains(candidate) && SeesBothRoofCells(r, c, roofCell1Row, roofCell1Col, roofCell2Row, roofCell2Col) &&
+                        r != roofCell1Row && c != roofCell1Col && r != roofCell2Row && c != roofCell2Col)
                     {
+                        //debugInfo.AppendLine($"Removed candidate {candidate} from cell ({r}, {c}) seen by roof cell 1 ({roofCell1Row}, {roofCell1Col}) and roof cell 2 ({roofCell2Row}, {roofCell2Col})");
                         _puzzle.SolverCandidates[r, c].Remove(candidate);
                         return true;
                     }
