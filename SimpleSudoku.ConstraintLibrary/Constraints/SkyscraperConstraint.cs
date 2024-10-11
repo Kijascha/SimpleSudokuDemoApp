@@ -60,59 +60,43 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                     var strongLink1 = strongLinks.ToList()[u1].unit;
                     var strongLink2 = strongLinks.ToList()[u2].unit;
 
-                    var filteredLink1 = strongLink1.Where(c => c.Candidates.Contains(candidate));
-                    var selectedLink1 = (searchUnitType == SearchUnitType.Row) ? filteredLink1.Select(c => c.Column) :
-                                        (searchUnitType == SearchUnitType.Column) ? filteredLink1.Select(c => c.Row) : null;
-
-                    var filteredLink2 = strongLink2.Where(c => c.Candidates.Contains(candidate));
-                    var selectedLink2 = (searchUnitType == SearchUnitType.Row) ? filteredLink2.Select(c => c.Column) :
-                                        (searchUnitType == SearchUnitType.Column) ? filteredLink2.Select(c => c.Row) : null;
+                    var selectedLink1 = SelectLink(searchUnitType, strongLink1, candidate);
+                    var selectedLink2 = SelectLink(searchUnitType, strongLink1, candidate);
 
                     if (selectedLink1 != null && selectedLink2 != null)
                     {
                         var weakLink = selectedLink1.Intersect(selectedLink2);
-
 
                         if (weakLink.Count() > 0)
                         {
                             foreach (var weakLinkUnit in weakLink)
                             {
                                 // Get the cells in the intersecting column that contain the candidate in both rows
-                                var baseCandidates1 = (searchUnitType == SearchUnitType.Row) ? strongLink1.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
-                                                                                            (searchUnitType == SearchUnitType.Column) ? strongLink1.Where(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) : null;
-                                var baseCandidates2 = (searchUnitType == SearchUnitType.Row) ? strongLink2.Where(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
-                                                                                            (searchUnitType == SearchUnitType.Column) ? strongLink2.Where(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) : null;
+                                var baseCell1 = FindBaseCell(searchUnitType, strongLink1, candidate, weakLinkUnit);
+                                var baseCell2 = FindBaseCell(searchUnitType, strongLink2, candidate, weakLinkUnit);
 
-                                if (baseCandidates1 != null && baseCandidates2 != null)
+                                if (baseCell1 != null && baseCell2 != null)
                                 {
-                                    var baseCell1 = baseCandidates1.First();
-                                    var baseCell2 = baseCandidates2.First();
+                                    var roofCell1 = FindRoofCell(searchUnitType, strongLink1, candidate, baseCell1.Value.Row, baseCell1.Value.Column);
+                                    var roofCell2 = FindRoofCell(searchUnitType, strongLink2, candidate, baseCell1.Value.Row, baseCell1.Value.Column);
 
-                                    var roofCellResult1 = (searchUnitType == SearchUnitType.Row) ? strongLink1.Where(c => c.Candidates.Contains(candidate) && (c.Column != baseCell1.Column)) :
-                                                                                            (searchUnitType == SearchUnitType.Column) ? strongLink1.Where(c => c.Candidates.Contains(candidate) && (c.Row != baseCell1.Row)) : null;
-                                    var roofCellResult2 = (searchUnitType == SearchUnitType.Row) ? strongLink2.Where(c => c.Candidates.Contains(candidate) && (c.Column != baseCell2.Column)) :
-                                                                                            (searchUnitType == SearchUnitType.Column) ? strongLink2.Where(c => c.Candidates.Contains(candidate) && (c.Row != baseCell2.Row)) : null;
-
-                                    if (roofCellResult1 != null && roofCellResult2 != null)
+                                    if (roofCell1.HasValue && roofCell2.HasValue)
                                     {
-                                        var roofCell1 = roofCellResult1.First();
-                                        var roofCell2 = roofCellResult2.First();
-
                                         // Get the blocks of the strong linked candidates in row1 and row2
-                                        int block1 = ConstraintHelper.GetBlockIndex(baseCell1.Row, baseCell1.Column);
-                                        int block2 = ConstraintHelper.GetBlockIndex(baseCell2.Row, baseCell2.Column);
-                                        int block3 = ConstraintHelper.GetBlockIndex(roofCell1.Row, roofCell1.Column);
-                                        int block4 = ConstraintHelper.GetBlockIndex(roofCell2.Row, roofCell2.Column);
+                                        int block1 = ConstraintHelper.GetBlockIndex(baseCell1.Value.Row, baseCell1.Value.Column);
+                                        int block2 = ConstraintHelper.GetBlockIndex(baseCell2.Value.Row, baseCell2.Value.Column);
+                                        int block3 = ConstraintHelper.GetBlockIndex(roofCell1.Value.Row, roofCell1.Value.Column);
+                                        int block4 = ConstraintHelper.GetBlockIndex(roofCell2.Value.Row, roofCell2.Value.Column);
 
                                         var isRowCheck = (searchUnitType == SearchUnitType.Row) ? true : false;
 
                                         // Check if the roof forms a valid rectangular structure
-                                        if (IsValidSkyscraper(isRowCheck, baseCell1.Row, baseCell1.Column, baseCell2.Row, baseCell2.Column, roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column))
+                                        if (IsValidSkyscraper(isRowCheck, baseCell1.Value.Row, baseCell1.Value.Column, baseCell2.Value.Row, baseCell2.Value.Column, roofCell1.Value.Row, roofCell1.Value.Column, roofCell2.Value.Row, roofCell2.Value.Column))
                                         {
                                             //debugInfo.AppendLine($"Possible valid Skyscraper framed by base cells in [r1: {candidateInUnit1.Row} c1: {candidateInUnit1.Column} r2: {candidateInUnit2.Row} c2: {candidateInUnit2.Column}] " +
                                             //    $"and roof cells in [r1: {roofCell1.Row} c1: {roofCell1.Column} r2: {roofCell2.Row} c2: {roofCell2.Column}]");
                                             // Remove the candidate from cells that are seen by both roof cells and return true if successfull removed
-                                            if (RemoveCandidate(roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column, candidate, debugInfo))
+                                            if (RemoveCandidate(roofCell1.Value.Row, roofCell1.Value.Column, roofCell2.Value.Row, roofCell2.Value.Column, candidate, debugInfo))
                                                 return true;
                                         }
                                     }
@@ -125,6 +109,25 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
             return false;
         }
 
+        private (int Row, int Column, int? Digit, HashSet<int> Candidates)? FindBaseCell(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate, int weakLinkUnit)
+        {
+            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
+                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) :
+                   null;
+        }
+        private (int Row, int Column, int? Digit, HashSet<int> Candidates)? FindRoofCell(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate, int baseCellRow, int baseCellColumn)
+        {
+            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && (c.Column != baseCellColumn)) :
+                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && (c.Row != baseCellRow)) :
+                   null;
+        }
+        private IEnumerable<int>? SelectLink(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate)
+        {
+            var filteredLink = strongLink.Where(c => c.Candidates.Contains(candidate));
+            return (searchUnitType == SearchUnitType.Row) ? filteredLink.Select(c => c.Column) :
+                   (searchUnitType == SearchUnitType.Column) ? filteredLink.Select(c => c.Row) :
+                   null;
+        }
         private bool RemoveCandidate(int roofCell1Row, int roofCell1Col, int roofCell2Row, int roofCell2Col, int candidate, StringBuilder debugInfo)
         {
             // loop through the puzzle
