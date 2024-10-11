@@ -77,6 +77,45 @@ public partial class CreateViewModel : ViewModel
         RefreshCellCollection();
     }
 
+    [RelayCommand]
+    public void BacktrackSolve()
+    {
+        Puzzle.SudokuError -= Puzzle_SudokuError;
+        var solver = new BacktrackSolver(Puzzle);
+
+        var result = solver.Solve();
+
+        if (result)
+        {
+            RefreshCellCollection();
+
+        }
+
+        Puzzle.SudokuError += Puzzle_SudokuError;
+    }
+
+    [RelayCommand]
+    public void Clear()
+    {
+        for (int r = 0; r < PuzzleModel.Size; r++)
+        {
+            for (int c = 0; c < PuzzleModel.Size; c++)
+            {
+                Puzzle.UpdateDigit(r, c, null);
+            }
+        }
+        for (int r = 0; r < PuzzleModel.Size; r++)
+        {
+            for (int c = 0; c < PuzzleModel.Size; c++)
+            {
+                for (int candidate = 1; candidate <= PuzzleModel.Size; candidate++)
+                {
+                    Puzzle.SolverCandidates[r, c].Add(candidate);
+                }
+            }
+        }
+        RefreshCellCollection();
+    }
     private void RefreshCellCollection()
     {
         var newCollection = Puzzle.ToObservableCollection();
