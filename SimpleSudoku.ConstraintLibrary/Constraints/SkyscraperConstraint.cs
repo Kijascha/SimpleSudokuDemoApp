@@ -67,7 +67,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                     {
                         var weakLink = selectedLink1.Intersect(selectedLink2);
 
-                        if (weakLink.Count() > 0)
+                        if (weakLink.Any())
                         {
                             foreach (var weakLinkUnit in weakLink)
                             {
