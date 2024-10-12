@@ -1,5 +1,4 @@
 ﻿using SimpleSudoku.CommonLibrary.Models;
-using System.Diagnostics;
 
 namespace SimpleSudoku.SudokuSolver
 {
@@ -27,7 +26,7 @@ namespace SimpleSudoku.SudokuSolver
 
             var candidates = GetRandomDigits();
 
-            Debug.WriteLine($"[{string.Join(", ", candidates)}]");
+            //Debug.WriteLine($"[{string.Join(", ", candidates)}]");
 
             // Try placing each digit from 1 to 9
             for (int digit = 0; digit < candidates.Count; digit++)
