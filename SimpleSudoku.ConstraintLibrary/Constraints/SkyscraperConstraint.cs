@@ -38,7 +38,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
         private bool FindSkyscraper(int candidate, SearchUnitType searchUnitType, StringBuilder debugInfo)
         {
-            HashSet<(int unitNumber, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> unit)> strongLinks = [];
+            HashSet<(int unitNumber, IEnumerable<CellV2> unit)> strongLinks = [];
 
             for (int unit = 0; unit < PuzzleModel.Size; unit++)
             {
@@ -77,26 +77,26 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
                                 if (baseCell1 != null && baseCell2 != null)
                                 {
-                                    var roofCell1 = FindRoofCell(searchUnitType, strongLink1, candidate, baseCell1.Value.Row, baseCell1.Value.Column);
-                                    var roofCell2 = FindRoofCell(searchUnitType, strongLink2, candidate, baseCell1.Value.Row, baseCell1.Value.Column);
+                                    var roofCell1 = FindRoofCell(searchUnitType, strongLink1, candidate, baseCell1.Row, baseCell1.Column);
+                                    var roofCell2 = FindRoofCell(searchUnitType, strongLink2, candidate, baseCell1.Row, baseCell1.Column);
 
-                                    if (roofCell1.HasValue && roofCell2.HasValue)
+                                    if (roofCell1 != null && roofCell2 != null)
                                     {
                                         // Get the blocks of the strong linked candidates in row1 and row2
-                                        int block1 = ConstraintHelper.GetBlockIndex(baseCell1.Value.Row, baseCell1.Value.Column);
-                                        int block2 = ConstraintHelper.GetBlockIndex(baseCell2.Value.Row, baseCell2.Value.Column);
-                                        int block3 = ConstraintHelper.GetBlockIndex(roofCell1.Value.Row, roofCell1.Value.Column);
-                                        int block4 = ConstraintHelper.GetBlockIndex(roofCell2.Value.Row, roofCell2.Value.Column);
+                                        int block1 = ConstraintHelper.GetBlockIndex(baseCell1.Row, baseCell1.Column);
+                                        int block2 = ConstraintHelper.GetBlockIndex(baseCell2.Row, baseCell2.Column);
+                                        int block3 = ConstraintHelper.GetBlockIndex(roofCell1.Row, roofCell1.Column);
+                                        int block4 = ConstraintHelper.GetBlockIndex(roofCell2.Row, roofCell2.Column);
 
                                         var isRowCheck = (searchUnitType == SearchUnitType.Row) ? true : false;
 
                                         // Check if the roof forms a valid rectangular structure
-                                        if (IsValidSkyscraper(isRowCheck, baseCell1.Value.Row, baseCell1.Value.Column, baseCell2.Value.Row, baseCell2.Value.Column, roofCell1.Value.Row, roofCell1.Value.Column, roofCell2.Value.Row, roofCell2.Value.Column))
+                                        if (IsValidSkyscraper(isRowCheck, baseCell1.Row, baseCell1.Column, baseCell2.Row, baseCell2.Column, roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column))
                                         {
                                             //debugInfo.AppendLine($"Possible valid Skyscraper framed by base cells in [r1: {candidateInUnit1.Row} c1: {candidateInUnit1.Column} r2: {candidateInUnit2.Row} c2: {candidateInUnit2.Column}] " +
                                             //    $"and roof cells in [r1: {roofCell1.Row} c1: {roofCell1.Column} r2: {roofCell2.Row} c2: {roofCell2.Column}]");
                                             // Remove the candidate from cells that are seen by both roof cells and return true if successfull removed
-                                            if (RemoveCandidate(roofCell1.Value.Row, roofCell1.Value.Column, roofCell2.Value.Row, roofCell2.Value.Column, candidate, debugInfo))
+                                            if (RemoveCandidate(roofCell1.Row, roofCell1.Column, roofCell2.Row, roofCell2.Column, candidate, debugInfo))
                                                 return true;
                                         }
                                     }
@@ -109,21 +109,21 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
             return false;
         }
 
-        private (int Row, int Column, int? Digit, HashSet<int> Candidates)? FindBaseCell(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate, int weakLinkUnit)
+        private CellV2? FindBaseCell(SearchUnitType searchUnitType, IEnumerable<CellV2> strongLink, int candidate, int weakLinkUnit)
         {
-            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && c.Column == weakLinkUnit) :
-                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && c.Row == weakLinkUnit) :
+            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.SolverCandidates.Contains(candidate) && c.Column == weakLinkUnit) :
+                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.SolverCandidates.Contains(candidate) && c.Row == weakLinkUnit) :
                    null;
         }
-        private (int Row, int Column, int? Digit, HashSet<int> Candidates)? FindRoofCell(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate, int baseCellRow, int baseCellColumn)
+        private CellV2? FindRoofCell(SearchUnitType searchUnitType, IEnumerable<CellV2> strongLink, int candidate, int baseCellRow, int baseCellColumn)
         {
-            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && (c.Column != baseCellColumn)) :
-                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.Candidates.Contains(candidate) && (c.Row != baseCellRow)) :
+            return (searchUnitType == SearchUnitType.Row) ? strongLink.FirstOrDefault(c => c.SolverCandidates.Contains(candidate) && (c.Column != baseCellColumn)) :
+                   (searchUnitType == SearchUnitType.Column) ? strongLink.FirstOrDefault(c => c.SolverCandidates.Contains(candidate) && (c.Row != baseCellRow)) :
                    null;
         }
-        private IEnumerable<int>? SelectLink(SearchUnitType searchUnitType, IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> strongLink, int candidate)
+        private IEnumerable<int>? SelectLink(SearchUnitType searchUnitType, IEnumerable<CellV2> strongLink, int candidate)
         {
-            var filteredLink = strongLink.Where(c => c.Candidates.Contains(candidate));
+            var filteredLink = strongLink.Where(c => c.SolverCandidates.Contains(candidate));
             return (searchUnitType == SearchUnitType.Row) ? filteredLink.Select(c => c.Column) :
                    (searchUnitType == SearchUnitType.Column) ? filteredLink.Select(c => c.Row) :
                    null;
@@ -136,11 +136,11 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                 for (int c = 0; c < PuzzleModel.Size; c++)
                 {
                     // only handle cells which contains the candidate
-                    if (_puzzle.SolverCandidates[r, c].Contains(candidate) && SeesBothRoofCells(r, c, roofCell1Row, roofCell1Col, roofCell2Row, roofCell2Col) &&
+                    if (_puzzle.Board[r, c].SolverCandidates.Contains(candidate) && SeesBothRoofCells(r, c, roofCell1Row, roofCell1Col, roofCell2Row, roofCell2Col) &&
                         r != roofCell1Row && c != roofCell1Col && r != roofCell2Row && c != roofCell2Col)
                     {
                         //debugInfo.AppendLine($"Removed candidate {candidate} from cell ({r}, {c}) seen by roof cell 1 ({roofCell1Row}, {roofCell1Col}) and roof cell 2 ({roofCell2Row}, {roofCell2Col})");
-                        _puzzle.SolverCandidates[r, c].Remove(candidate);
+                        _puzzle.Board[r, c].SolverCandidates.Remove(candidate);
                         return true;
                     }
                 }

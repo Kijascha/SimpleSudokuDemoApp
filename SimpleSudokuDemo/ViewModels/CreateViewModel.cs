@@ -2,54 +2,32 @@
 using CommunityToolkit.Mvvm.Input;
 using SimpleSudoku.CommonLibrary.Models;
 using SimpleSudoku.CommonLibrary.System;
-using SimpleSudoku.SudokuSolver;
 using SimpleSudokuDemo.Services;
-using System.Windows.Media;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.Json;
+using System.Windows;
 
 namespace SimpleSudokuDemo.ViewModels;
 
-public partial class CreateViewModel : ViewModel
+public partial class CreateViewModel(
+                        INavigationService navigationService,
+                        IServiceProvider serviceProvider,
+                        IGameService gameService,
+                        IPuzzleModel puzzle) : ViewModel(navigationService, serviceProvider)
 {
-    [ObservableProperty] private IEnumerable<CellModel> _cellCollection;
-    private readonly IConstraintSolver _constraintSolver;
 
-    public IPuzzleModel Puzzle { get; set; }
-    [ObservableProperty] private CellModel? _selectedCell;
+    [ObservableProperty] private IPuzzleModel _puzzle = puzzle;
+    [ObservableProperty] private ObservableCollection<CellV2> _selectedCells = [];
+    [ObservableProperty] private bool _needsRedraw = false;
+    [ObservableProperty] private CandidateMode _candidateMode = CandidateMode.SolverCandidates;
+    [ObservableProperty] private GameMode _gameMode = GameMode.Create;
+    [ObservableProperty] private string _puzzleName = "Default Puzzle";
+    [ObservableProperty] private string _description = "";
+    [ObservableProperty] private PuzzleEntry? _selectedPuzzle;
+    [ObservableProperty] private ObservableCollection<PuzzleEntry> _puzzleEntries = [];
 
-    public CreateViewModel(INavigationService navigationService,
-                            IServiceProvider serviceProvider,
-                            IEnumerable<CellModel> cellCollection,
-                            IPuzzleModel puzzle,
-                            IConstraintSolver constraintSolver) : base(navigationService, serviceProvider)
-    {
-        _cellCollection = cellCollection;
-        Puzzle = puzzle;
-        _constraintSolver = constraintSolver;
-        Puzzle.SudokuError += Puzzle_SudokuError;
-        Puzzle.SudokuSuccess += Puzzle_SudokuSuccess;
-    }
-
-    private void Puzzle_SudokuSuccess(object? sender, SudokuSuccessEventArgs e)
-    {
-        foreach (var cell in CellCollection)
-        {
-            if (cell.Row == e.ConflictingCell.Row && cell.Column == e.ConflictingCell.Column)
-            {
-                cell.CellBackground = Brushes.White;
-            }
-        }
-    }
-
-    private void Puzzle_SudokuError(object? sender, SudokuErrorEventArgs e)
-    {
-        foreach (var cell in CellCollection)
-        {
-            if (cell.Row == e.ConflictingCell.Row && cell.Column == e.ConflictingCell.Column)
-            {
-                cell.CellBackground = Brushes.Red;
-            }
-        }
-    }
+    private readonly IGameService _gameService = gameService;
 
     [RelayCommand]
     public void NavigateToMenuView()
@@ -58,91 +36,177 @@ public partial class CreateViewModel : ViewModel
     }
 
     [RelayCommand]
-    public void AddDigit(Digits digit)
+    public void SetDigit(string value)
     {
-        var val = ConvertToInt(digit);
-
-        if (SelectedCell != null)
-        {
-            Puzzle.UpdateDigit(SelectedCell.Row, SelectedCell.Column, val, true);
-            RefreshCellCollection();
-        }
-    }
-    [RelayCommand]
-    public void Solve()
-    {
-        //TODO implement Solve method call from the solver class
-        _constraintSolver.InitializeConstraints();
-        _constraintSolver.Solve();
-        RefreshCellCollection();
-    }
-
-    [RelayCommand]
-    public void BacktrackSolve()
-    {
-        Puzzle.SudokuError -= Puzzle_SudokuError;
-        var solver = new BacktrackSolver(Puzzle);
-
-        var result = solver.Solve();
-
+        var result = int.TryParse(value, out int digit);
         if (result)
         {
-            RefreshCellCollection();
 
+            foreach (var cell in SelectedCells)
+            {
+                NeedsRedraw = false;
+
+                Puzzle.UpdateDigit(cell.Row, cell.Column, digit, GameMode, CandidateMode);
+
+                // TODO If gameMode = create
+                if (GameMode == GameMode.Create)
+                {
+                    if (Puzzle.Board[cell.Row, cell.Column].Digit != 0)
+                    {
+                        Puzzle.Board[cell.Row, cell.Column].IsPredefined = true;
+                    }
+                    else
+                    {
+                        Puzzle.Board[cell.Row, cell.Column].IsPredefined = false;
+                    }
+                }
+
+                NeedsRedraw = true;
+            }
+        }
+    }
+    [RelayCommand]
+    public void UpdateCandidateMode(CandidateMode candidateMode)
+    {
+        NeedsRedraw = false;
+        NeedsRedraw = candidateMode switch
+        {
+            CandidateMode.CenterCandidates => true,
+            CandidateMode.CornerCandidates => true,
+            CandidateMode.SolverCandidates => true,
+            CandidateMode.None => true,
+            _ => true,
+        };
+
+    }
+    [RelayCommand]
+    public void UpdateGameMode()
+    {
+        NeedsRedraw = false;
+
+        if (GameMode == GameMode.Create)
+            GameMode = GameMode.Play;
+        else
+            GameMode = GameMode.Create;
+
+        NeedsRedraw = true;
+
+    }
+    [RelayCommand]
+    public void Undo()
+    {
+        NeedsRedraw = false;
+        if (Puzzle.CanUndo)
+        {
+            Puzzle.Undo();
+            NeedsRedraw = true;
+        }
+    }
+    [RelayCommand]
+    public void Redo()
+    {
+        NeedsRedraw = false;
+        if (Puzzle.CanRedo)
+        {
+            Puzzle.Redo();
+            NeedsRedraw = true;
         }
 
-        Puzzle.SudokuError += Puzzle_SudokuError;
     }
 
     [RelayCommand]
-    public void Clear()
+    public async Task SavePuzzle()
     {
-        for (int r = 0; r < PuzzleModel.Size; r++)
+        PuzzleEntry puzzleEntry = new()
         {
-            for (int c = 0; c < PuzzleModel.Size; c++)
-            {
-                Puzzle.UpdateDigit(r, c, null);
-            }
+            Id = Guid.NewGuid(),
+            Name = PuzzleName,
+            Board = Puzzle.ToJaggedArray(),
+            Description = Description,
+        };
+
+        var result = PuzzleEntries.Where(p => p.Name == puzzleEntry.Name);
+
+        if (!result.Any())
+        {
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+
+            // Define the directory and file path
+            string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), "SavedPuzzles");
+            string filePath = Path.Combine(directoryPath, "savedPuzzles.json");
+
+            if (PuzzleEntries.Count == 0)
+                await OpenPuzzles(filePath);
+
+            PuzzleEntries.Add(puzzleEntry);
+
+            // Ensure the directory exists
+            Directory.CreateDirectory(directoryPath);
+
+            // Serialize and save JSON to the file
+            string json = JsonSerializer.Serialize(PuzzleEntries, options);
+
+            using FileStream fileStream = File.Create(filePath);
+            await JsonSerializer.SerializeAsync(fileStream, PuzzleEntries);
+            await fileStream.DisposeAsync();
+
+            MessageBox.Show($"Puzzle '{puzzleEntry.Name}' Saved");
         }
-        for (int r = 0; r < PuzzleModel.Size; r++)
+        else
         {
-            for (int c = 0; c < PuzzleModel.Size; c++)
+            MessageBox.Show($"Puzzle '{puzzleEntry.Name}' already exists!");
+        }
+    }
+    [RelayCommand]
+    public async Task OpenPuzzles()
+    {
+        // Define the directory and file path
+        string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), "SavedPuzzles");
+        string filePath = Path.Combine(directoryPath, "savedPuzzles.json");
+
+        await OpenPuzzles(filePath);
+    }
+    [RelayCommand]
+    public void LoadPuzzle()
+    {
+        NeedsRedraw = false;
+        if (SelectedPuzzle != null)
+        {
+            Puzzle.FromJaggedArray(SelectedPuzzle.Board);
+            NeedsRedraw = true;
+        }
+    }
+
+    private async Task OpenPuzzles(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            using FileStream fileStream = File.OpenRead(filePath);
+            var result = await JsonSerializer.DeserializeAsync<List<PuzzleEntry>>(fileStream);
+
+            if (result != null)
             {
-                for (int candidate = 1; candidate <= PuzzleModel.Size; candidate++)
+                PuzzleEntries.Clear();
+                foreach (var entry in result)
                 {
-                    Puzzle.SolverCandidates[r, c].Add(candidate);
+                    PuzzleEntries.Add(entry);
                 }
             }
         }
-        RefreshCellCollection();
     }
-    private void RefreshCellCollection()
+    [RelayCommand]
+    public async Task Solve()
     {
-        var newCollection = Puzzle.ToObservableCollection();
-        int i = 0;
-        foreach (var cell in CellCollection)
-        {
-            cell.Row = newCollection[i].Row;
-            cell.Column = newCollection[i].Column;
-            cell.Digit = newCollection[i].Digit;
-            cell.PlayerCandidates = [.. newCollection[i].PlayerCandidates];
-            cell.SolverCandidates = [.. newCollection[i].SolverCandidates];
-            i++;
-        }
+        NeedsRedraw = false;
+        //TODO implement Solve method call from the solver class
+        _gameService.ConstraintSolver.InitializeConstraints();
+        var result = await Task.Run(_gameService.ConstraintSolver.Solve);
+
+        MessageBox.Show($"Solvable: {result}");
+
+        NeedsRedraw = true;
+        //RefreshCellCollection();
     }
 
-    private static int? ConvertToInt(Digits values)
-    {
-        return (values == Digits.One) ? 1 :
-               (values == Digits.Two) ? 2 :
-               (values == Digits.Three) ? 3 :
-               (values == Digits.Four) ? 4 :
-               (values == Digits.Five) ? 5 :
-               (values == Digits.Six) ? 6 :
-               (values == Digits.Seven) ? 7 :
-               (values == Digits.Eight) ? 8 :
-               (values == Digits.Nine) ? 9 :
-               (values == Digits.Zero) ? 0 :
-               null;
-    }
 }

@@ -2,7 +2,7 @@
 
 namespace SimpleSudoku.CommonLibrary.Models
 {
-    public interface IPuzzleModel
+    public interface IPuzzleModelV2
     {
         CellV2[,] Board { get; set; }
         CellV2[][] ToJaggedArray();
@@ -20,6 +20,6 @@ namespace SimpleSudoku.CommonLibrary.Models
         bool IsValidInRow(int row, int digit);
         bool IsValidInSubgrid(int row, int column, int digit);
         void UpdateCandidate(int row, int column, int candidate, GameMode gameMode, bool useSolverCandidates = true, CandidateMode candidateMode = CandidateMode.None);
-        void UpdateDigit(int row, int column, int digit, GameMode gameMode, CandidateMode candidateMode);
+        void UpdateDigit(int row, int column, int digit, GameMode gameMode);
     }
 }

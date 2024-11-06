@@ -15,7 +15,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                 for (int col = 0; col < PuzzleModel.Size; col++)
                 {
                     var unitCells = _puzzle.GetUnit(row, col, searchUnitType)
-                        .Where(cell => cell.Digit == null);
+                        .Where(cell => cell.Digit == 0);
 
                     for (int candidate = 1; candidate <= PuzzleModel.Size; candidate++)
                     {
@@ -24,7 +24,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                         // count every candidate in the specified unit
                         foreach (var unitCell in unitCells)
                         {
-                            if (unitCell.Candidates.Contains(candidate))
+                            if (unitCell.SolverCandidates.Contains(candidate))
                                 count++;
 
                             if (count > 1)
@@ -34,13 +34,13 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                         // if a candidate appears only once in the unit then proceed
                         if (count == 1)
                         {
-                            var singleCandidate = unitCells.Where(c => c.Candidates.Contains(candidate)).Single();
+                            var singleCandidate = unitCells.Where(c => c.SolverCandidates.Contains(candidate)).Single();
 
-                            if (singleCandidate.Candidates.Contains(candidate))
+                            if (singleCandidate.SolverCandidates.Contains(candidate))
                             {
                                 // transform the hidden single into a naked single
-                                _puzzle.SolverCandidates[singleCandidate.Row, singleCandidate.Column].Clear();
-                                _puzzle.SolverCandidates[singleCandidate.Row, singleCandidate.Column].Add(candidate);
+                                _puzzle.Board[singleCandidate.Row, singleCandidate.Column].SolverCandidates.Clear();
+                                _puzzle.Board[singleCandidate.Row, singleCandidate.Column].SolverCandidates.Add(candidate);
 
                                 return true;
                             }

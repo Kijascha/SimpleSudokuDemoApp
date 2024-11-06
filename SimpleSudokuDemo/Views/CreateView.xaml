@@ -5,179 +5,159 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SimpleSudokuDemo.Views" 
              xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" 
-             xmlns:system="clr-namespace:SimpleSudoku.CommonLibrary.System;assembly=SimpleSudoku.CommonLibrary"
+             xmlns:controls="clr-namespace:SimpleSudokuDemo.Controls"
+             xmlns:system="clr-namespace:SimpleSudoku.CommonLibrary.System;assembly=SimpleSudoku.CommonLibrary" 
+             xmlns:core="clr-namespace:SimpleSudokuDemo.Core"
              d:DataContext="{d:DesignInstance Type=viewmodels:CreateViewModel}"
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="800" Background="White">
 
-    <UserControl.InputBindings>
-        <KeyBinding Key="NumPad1"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.One}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad2"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Two}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad3"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Three}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad4"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Four}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad5"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Five}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad6"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Six}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad7"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Seven}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad8"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Eight}"
-                    Modifiers="" />
-        <KeyBinding Key="NumPad9"  
-                        Command="{Binding AddDigitCommand}" 
-                        CommandParameter="{x:Static system:Digits.Nine}"
-                    Modifiers="" />
-    </UserControl.InputBindings>
     <UserControl.Resources>
-        <SolidColorBrush x:Key="DefaultBorderColor" Color="Transparent" />
-        <SolidColorBrush x:Key="HighlightBorderColor" Color="Purple" />
-
-        <LinearGradientBrush x:Key="SelectedBorderColor" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="Purple" Offset="0" />
-            <GradientStop Color="MediumPurple" Offset="1" />
-        </LinearGradientBrush>
+        <core:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="251" />
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="0.6*" />
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock FontSize="28" Foreground="Black" Text="CreateView" Margin="0 0 0 20" />
-            <Button Content="Solve" FontSize="28" Foreground="Black" Command="{ Binding SolveCommand }" />
-            <Button Content="Backtrack Solve" FontSize="28" Foreground="Black" Command="{ Binding BacktrackSolveCommand }" />
-            <Button Content="Clear" FontSize="28" Foreground="Black" Command="{ Binding ClearCommand }" />
-            <Button Content="Back" FontSize="28" Foreground="Black" Command="{ Binding NavigateToMenuViewCommand }" />
-        </StackPanel>
 
-        <ListBox Grid.Column="1" ItemsSource="{Binding CellCollection, Mode=TwoWay}" Margin="10" 
-                 BorderBrush="Transparent" 
-                 BorderThickness="0"
-                 Background="Transparent"
-                 ScrollViewer.CanContentScroll="False"
-                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                 SelectedItem="{Binding SelectedCell, Mode=TwoWay}">
-            <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <UniformGrid IsItemsHost="True" Columns="9" Rows="9" Width="390" Height="390" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-                </ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="{x:Type ListBoxItem}">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    <Setter Property="VerticalContentAlignment" Value="Stretch" />
-                    <Setter Property="Background" Value="White" />
-                    <Setter Property="BorderBrush" Value="Black" />
-                    <Setter Property="BorderThickness" Value="1" />
-                    <Setter Property="OpacityMask" Value="Black" />
-                    <Setter Property="Margin" Value="-.6" />
-                    <Setter Property="Padding" Value="0" />
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="{x:Type ListBoxItem}">
-                                <Border Name="CellBorder" Background="{Binding CellBackground}" BorderBrush="Black" BorderThickness="{Binding CellBorderThickness}">
-                                    <ContentPresenter Margin=".5" />
-                                </Border>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </ListBox.ItemContainerStyle>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="3" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="3.5" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="3" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="3.5" />
-                        </Grid.RowDefinitions>
-                        
-                        <!-- Corner Borders  -->
-                        <Border Name="TopLeftBorder" Grid.Row="0" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="TopRightBorder" Grid.Row="0" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="BottomLeftBorder" Grid.Row="2" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="BottomRightBorder" Grid.Row="2" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
-                        <!-- Edge Borders  -->
-                        <Border Name="LeftBorder" Grid.Row="1" Grid.Column="0" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="TopBorder" Grid.Row="0" Grid.Column="1" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="RightBorder" Grid.Row="1" Grid.Column="2" Background="{StaticResource DefaultBorderColor}" />
-                        <Border Name="BottomBorder" Grid.Row="2" Grid.Column="1" Background="{StaticResource DefaultBorderColor}" />
+        <controls:SudokuGridControl Grid.Column="0"
+                                x:Name="SudokuGrid"
+                                Puzzle="{Binding Puzzle, Mode=TwoWay}"
+                                SelectedCells="{Binding SelectedCells, Mode=TwoWay}"
+                                GameMode="{Binding GameMode, Mode=TwoWay}"
+                                CandidateMode="{Binding CandidateMode, Mode=TwoWay}"
+                                NeedsRedraw="{Binding NeedsRedraw, Mode=TwoWay}"/>
 
-                        <!-- Use an ItemsControl to display the candidates -->
-                        <ItemsControl Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                              ItemsSource="{Binding SolverCandidates}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Columns="3" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock FontSize="11" 
-                                       Text="{Binding}" 
-                                       HorizontalAlignment="Center" 
-                                       VerticalAlignment="Center" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+        <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" ShowGridLines="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+            </Grid.RowDefinitions>
 
-                        <Border Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                            <TextBlock Text="{Binding Digit}" FontSize="32"
-                               VerticalAlignment="Center" TextAlignment="Center"
-                               HorizontalAlignment="Stretch" />
-                        </Border>
-                    </Grid>
-                    <DataTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="TopLeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="TopRightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="BottomLeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="BottomRightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="LeftBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="RightBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="TopBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                            <Setter TargetName="BottomBorder" Property="Background" Value="{StaticResource HighlightBorderColor}" />
-                        </Trigger>
-                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
-                            <Setter TargetName="TopLeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="TopRightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="BottomLeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="BottomRightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="LeftBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="RightBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="TopBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                            <Setter TargetName="BottomBorder" Property="Background" Value="{StaticResource SelectedBorderColor}" />
-                        </DataTrigger>
-                    </DataTemplate.Triggers>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
+            <Button Grid.Column="2" Grid.Row="0" Content="7" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="7" />
+            <Button Grid.Column="3" Grid.Row="0" Content="8" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="8" />
+            <Button Grid.Column="4" Grid.Row="0" Content="9" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="9" />
+            <Button Grid.Column="2" Grid.Row="1" Content="4" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="4" />
+            <Button Grid.Column="3" Grid.Row="1" Content="5" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="5" />
+            <Button Grid.Column="4" Grid.Row="1" Content="6" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="6" />
+            <Button Grid.Column="2" Grid.Row="2" Content="1" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="1" />
+            <Button Grid.Column="3" Grid.Row="2" Content="2" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="2" />
+            <Button Grid.Column="4" Grid.Row="2" Content="3" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="3" />
 
-        </ListBox>
+            <Button x:Name="OpenSaveDialogBtn" Grid.Column="0" Grid.Row="0" Content="S" Focusable="False" Margin="3" Click="OpenSaveDialogBtn_Click" />
+            <Button x:Name="OpenLoadDialogBtn" Grid.Column="0" Grid.Row="1" Content="L" Focusable="False" Margin="3" Click="OpenLoadDialogBtn_Click" Command="{Binding OpenPuzzlesCommand}"/>
+            <Button Grid.Column="1" Grid.Row="0" Content="U-" Focusable="False" Margin="3" 
+                IsEnabled="{Binding Puzzle.CanUndo, Mode=OneWay}" Command="{Binding UndoCommand}"/>
+            <Button Grid.Column="1" Grid.Row="1" Content="R+" Focusable="False" Margin="3" 
+                IsEnabled="{Binding Puzzle.CanRedo, Mode=OneWay}" Command="{Binding RedoCommand}"/>
+            <Button Grid.Column="3" Grid.Row="3" Grid.ColumnSpan="2" Content="X" Focusable="False" Margin="3" 
+                Command="{Binding UpdateGameModeCommand}" />
+
+            <RadioButton Grid.Column="5" Grid.Row="0" Content="D" Focusable="False" Margin="3" 
+                     IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.None}}"
+                     Command="{Binding UpdateCandidateModeCommand}"
+                     CommandParameter="{x:Static system:CandidateMode.None}"/>
+            <RadioButton Grid.Column="5" Grid.Row="1" Content="CeCa" Focusable="False" Margin="3" 
+                     IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.CenterCandidates}}"
+                     Command="{Binding UpdateCandidateModeCommand}"
+                     CommandParameter="{x:Static system:CandidateMode.CenterCandidates}"/>
+            <RadioButton Grid.Column="5" Grid.Row="2" Content="CoCa" Focusable="False" Margin="3" 
+                     IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.CornerCandidates}}"
+                     Command="{Binding UpdateCandidateModeCommand}"
+                     CommandParameter="{x:Static system:CandidateMode.CornerCandidates}"/>
+            <RadioButton Grid.Column="5" Grid.Row="3" Content="SoCa" Focusable="False" Margin="3" 
+                     IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.SolverCandidates}}"
+                     Command="{Binding UpdateCandidateModeCommand}"
+                     CommandParameter="{x:Static system:CandidateMode.SolverCandidates}"/>
+
+            <Button Grid.Row="5" Focusable="False" Grid.Column="0" Margin="3" Content="B" Command="{Binding NavigateToMenuViewCommand}" />
+            <Button Grid.Row="5" Focusable="False" Grid.Column="1" Margin="3" Grid.ColumnSpan="2" Content="Solve" Command="{Binding SolveCommand}" />
+        </Grid>
+
+
+        <Border x:Name="SaveDialogBG" Grid.Column="1" Background="Black" Opacity=".8"/>
+        <Border x:Name="SaveDialog" Grid.Column="1" 
+            Margin="0" Padding="0" 
+            Width="400" Height="400" 
+            BorderBrush="Black" 
+            BorderThickness="1" 
+            CornerRadius="10">
+            <Grid Grid.Column="1" 
+                HorizontalAlignment="Stretch" 
+                VerticalAlignment="Stretch" Background="White">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CloseSaveDialog" Content="X" Grid.Row="0" Grid.Column="5" Focusable="False" FontSize="24" Margin="10" Click="CloseSaveDialog_Click" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4">
+                    <Label Content="Name for the puzzle:" FontWeight="Bold"/>
+                    <TextBox x:Name="NameText" Text="{Binding PuzzleName}" Height="32" FontSize="24" />
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="1" Grid.RowSpan="2" Grid.ColumnSpan="4">
+                    <Label Content="Description (optionally):" FontWeight="Bold"/>
+                    <TextBox x:Name="DescriptionText" Text="{Binding Description}" Height="96" FontSize="24" MinLines="3" />
+                </StackPanel>
+                <Button Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4" Content="Save" Command="{Binding SavePuzzleCommand}"/>
+            </Grid>
+        </Border>
+
+        <Border x:Name="LoadDialogBG" Grid.Column="1" Background="Black" Opacity=".8"/>
+        <Border x:Name="LoadDialog" Grid.Column="1" 
+            Margin="0" Padding="0" 
+            Width="400" Height="400" 
+            BorderBrush="Black" 
+            BorderThickness="1" 
+            CornerRadius="10">
+            <Grid Grid.Column="1" 
+                HorizontalAlignment="Stretch" 
+                VerticalAlignment="Stretch" Background="White">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CloseLoadDialog" Content="X" Grid.Row="0" Grid.Column="5" Focusable="False" FontSize="24" Margin="10" Click="CloseLoadDialog_Click" />
+                <ListBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Grid.RowSpan="3" 
+                     ItemsSource="{Binding PuzzleEntries}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedPuzzle}"/>
+                <Button Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4" Content="Load" Margin="10" Command="{Binding LoadPuzzleCommand}"/>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

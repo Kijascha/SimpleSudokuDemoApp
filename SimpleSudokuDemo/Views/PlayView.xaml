@@ -3,13 +3,252 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:SimpleSudokuDemo.Views" xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:PlayViewModel}"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800" Background="White">
+             xmlns:local="clr-namespace:SimpleSudokuDemo.Views" 
+             xmlns:core="clr-namespace:SimpleSudokuDemo.Core"
+             xmlns:system="clr-namespace:SimpleSudoku.CommonLibrary.System;assembly=SimpleSudoku.CommonLibrary"
+             xmlns:controls="clr-namespace:SimpleSudokuDemo.Controls"
+             xmlns:viewmodels="clr-namespace:SimpleSudokuDemo.ViewModels" 
+             d:DataContext="{d:DesignInstance Type=viewmodels:PlayViewModel}"
+             mc:Ignorable="d" Name="BaseView"
+             d:DesignHeight="650" d:DesignWidth="1024" Background="White" KeyDown="UserControl_KeyDown">
+    <UserControl.Resources>
+        <core:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+
+        <QuadraticEase x:Key="QuadraticEase" EasingMode="EaseInOut"/>
+
+        <!-- Slide-In Storyboard -->
+        <Storyboard x:Key="SlideInStoryboard">
+            <DoubleAnimation
+            Storyboard.TargetName="SlideTransform"
+            Storyboard.TargetProperty="X"
+            From="{Binding ElementName=BaseView, Path=ActualWidth}"
+            To="0"
+            Duration="0:0:0.3"
+            EasingFunction="{StaticResource QuadraticEase}"/>
+        </Storyboard>
+        
+        <!-- Slide-Out Storyboard -->
+        <Storyboard x:Key="SlideOutStoryboard">
+            <DoubleAnimation
+            Storyboard.TargetName="SlideTransform"
+            Storyboard.TargetProperty="X"
+            From="0"
+            To="{Binding ElementName=BaseView, Path=ActualWidth}"
+            Duration="0:0:0.3"
+            EasingFunction="{StaticResource QuadraticEase}"/>
+        </Storyboard>
+
+        <!-- Slide-In Storyboard -->
+        <Storyboard x:Key="SettingsSlideInStoryboard">
+            <DoubleAnimation
+                Storyboard.TargetName="SettingsSlideTransform"
+                Storyboard.TargetProperty="X"
+                From="{Binding ElementName=BaseView, Path=ActualWidth}"
+                To="0"
+                Duration="0:0:0.3"
+                EasingFunction="{StaticResource QuadraticEase}"/>
+        </Storyboard>
+
+        <!-- Slide-Out Storyboard -->
+        <Storyboard x:Key="SettingsSlideOutStoryboard">
+            <DoubleAnimation
+                Storyboard.TargetName="SettingsSlideTransform"
+                Storyboard.TargetProperty="X"
+                From="0"
+                To="{Binding ElementName=BaseView, Path=ActualWidth}"
+                Duration="0:0:0.3"
+                EasingFunction="{StaticResource QuadraticEase}"/>
+        </Storyboard>
+
+        <core:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
     <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock FontSize="28" Foreground="Black" Text="PlayView" Margin="0 0 0 20" />
-            <Button Content="Back" FontSize="28" Foreground="Black" Command="{ Binding NavigateToMenuViewCommand }" />
-        </StackPanel>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="0.6*" />
+        </Grid.ColumnDefinitions>
+
+        <controls:SudokuGridControl Grid.Column="0"
+                                    x:Name="SudokuGrid"
+                                    Puzzle="{Binding Puzzle, Mode=TwoWay}"
+                                    SelectedCells="{Binding SelectedCells, Mode=TwoWay}"
+                                    GameMode="{Binding GameMode, Mode=TwoWay}"
+                                    CandidateMode="{Binding CandidateMode, Mode=TwoWay}"
+                                    NeedsRedraw="{Binding NeedsRedraw, Mode=TwoWay}"/>
+
+        <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" ShowGridLines="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+                <ColumnDefinition Width="*" MinWidth="50"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+                <RowDefinition Height="*" MinHeight="50"/>
+            </Grid.RowDefinitions>
+
+            <Button Grid.Column="2" Grid.Row="0" Content="7" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="7" />
+            <Button Grid.Column="3" Grid.Row="0" Content="8" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="8" />
+            <Button Grid.Column="4" Grid.Row="0" Content="9" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="9" />
+            <Button Grid.Column="2" Grid.Row="1" Content="4" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="4" />
+            <Button Grid.Column="3" Grid.Row="1" Content="5" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="5" />
+            <Button Grid.Column="4" Grid.Row="1" Content="6" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="6" />
+            <Button Grid.Column="2" Grid.Row="2" Content="1" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="1" />
+            <Button Grid.Column="3" Grid.Row="2" Content="2" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="2" />
+            <Button Grid.Column="4" Grid.Row="2" Content="3" Focusable="False" Margin="3" Command="{Binding SetDigitCommand}" CommandParameter="3" />
+
+            <Button x:Name="OpenSaveDialogBtn" Grid.Column="0" Grid.Row="0" Content="S" Focusable="False" Margin="3" Click="OpenSaveDialogBtn_Click" />
+            <Button x:Name="OpenLoadDialogBtn" Grid.Column="0" Grid.Row="1" Content="L" Focusable="False" Margin="3" Click="OpenLoadDialogBtn_Click" Command="{Binding OpenPuzzlesCommand}"/>
+            <Button Grid.Column="1" Grid.Row="0" Content="U-" Focusable="False" Margin="3" 
+                    IsEnabled="{Binding Puzzle.CanUndo, Mode=OneWay}" Command="{Binding UndoCommand}"/>
+            <Button Grid.Column="1" Grid.Row="1" Content="R+" Focusable="False" Margin="3" 
+                    IsEnabled="{Binding Puzzle.CanRedo, Mode=OneWay}" Command="{Binding RedoCommand}"/>
+            <Button Grid.Column="3" Grid.Row="3" Grid.ColumnSpan="2" Content="X" Focusable="False" Margin="3" 
+                    Command="{Binding UpdateGameModeCommand}" />
+
+            <RadioButton Grid.Column="5" Grid.Row="0" Content="D" Focusable="False" Margin="3" 
+                         Style="{StaticResource ResourceKey=DigitModeCheckBox}"
+                         IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.None}}"
+                         Command="{Binding UpdateCandidateModeCommand}"
+                         CommandParameter="{x:Static system:CandidateMode.None}"/>
+            <RadioButton Grid.Column="5" Grid.Row="1" Content="CeCa" Focusable="False" Margin="3"  
+                         Style="{StaticResource ResourceKey=CenterModeCheckBox}"
+                         IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.CenterCandidates}}"
+                         Command="{Binding UpdateCandidateModeCommand}"
+                         CommandParameter="{x:Static system:CandidateMode.CenterCandidates}"/>
+            <RadioButton Grid.Column="5" Grid.Row="2" Content="CoCa" Focusable="False" Margin="3" 
+                         Style="{StaticResource ResourceKey=CornerModeCheckBox}"
+                         IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.CornerCandidates}}"
+                         Command="{Binding UpdateCandidateModeCommand}"
+                         CommandParameter="{x:Static system:CandidateMode.CornerCandidates}"/>
+            <RadioButton Grid.Column="5" Grid.Row="3" Content="SoCa" Focusable="False" Margin="3"
+                         Visibility="{Binding DeveloperMode, Mode=TwoWay, Converter={StaticResource BooleanToVisibilityConverter}}"
+                         IsChecked="{Binding Path=CandidateMode, Converter={StaticResource EnumToBooleanConverter},ConverterParameter={x:Static system:CandidateMode.SolverCandidates}}"
+                         Command="{Binding UpdateCandidateModeCommand}"
+                         CommandParameter="{x:Static system:CandidateMode.SolverCandidates}"/>
+            
+            <Button Grid.Row="3" Focusable="False" Grid.Column="0" Margin="3" Content="Se" Click="OpenSettingsPanelBtn_Click" Command="{Binding OpenSettingsCommand}"/>
+            <Button Grid.Row="5" Focusable="False" Grid.Column="0" Margin="3" Content="B" Command="{Binding NavigateToMenuViewCommand}" />
+            <Button Grid.Row="5" Focusable="False" Visibility="{Binding DeveloperMode, Mode=TwoWay, Converter={StaticResource BooleanToVisibilityConverter}}" Grid.Column="1" Margin="3" Grid.ColumnSpan="2" Content="Solve" Command="{Binding SolveCommand}" />
+        </Grid>
+
+
+        <Border x:Name="SaveDialogBG" Grid.Column="1" Background="Black" Opacity=".8"/>
+        <Border x:Name="SaveDialog" Grid.Column="1" 
+                Margin="0" Padding="0" 
+                Width="400" Height="400" 
+                BorderBrush="Black" 
+                BorderThickness="1" 
+                CornerRadius="10">
+            <Grid Grid.Column="1" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch" Background="White">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CloseSaveDialog" Content="X" Grid.Row="0" Grid.Column="5" Focusable="False" FontSize="24" Margin="10" Click="CloseSaveDialog_Click" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4">
+                    <Label Content="Name for the puzzle:" FontWeight="Bold"/>
+                    <TextBox x:Name="NameText" Text="{Binding PuzzleName}" Height="32" FontSize="24" />
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="1" Grid.RowSpan="2" Grid.ColumnSpan="4">
+                    <Label Content="Description (optionally):" FontWeight="Bold"/>
+                    <TextBox x:Name="DescriptionText" Text="{Binding Description}" Height="96" FontSize="24" MinLines="3" />
+                </StackPanel>
+                <Button Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4" Content="Save" Command="{Binding SavePuzzleCommand}"/>
+            </Grid>
+        </Border>
+
+        <Border x:Name="LoadDialog" Grid.Column="1" 
+                Margin="0" Padding="0" 
+                Width="350" Height="Auto" 
+                BorderBrush="Black" 
+                BorderThickness="1" HorizontalAlignment="Right">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SlideTransform" X="{Binding ElementName=BaseView, Path=ActualWidth}"/>
+            </Border.RenderTransform>
+            <Grid Grid.Column="1" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch" Background="Purple" ShowGridLines="True">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="0.75*" />
+                    <RowDefinition Height="1.1*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CloseLoadDialog" Content="X" Grid.Row="1" Grid.Column="5" Focusable="False" FontSize="16" Margin="20" Click="CloseLoadDialog_Click" />
+                <ListBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Grid.RowSpan="3" 
+                         ItemsSource="{Binding PuzzleEntries}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedPuzzle}"/>
+                <Button Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Content="Load" Margin="10" Command="{Binding LoadPuzzleCommand}"/>
+            </Grid>
+        </Border>
+        
+        <Border x:Name="SettingsDialog" Grid.Column="1" 
+        Margin="0" Padding="0" 
+        Width="350" Height="Auto" 
+        BorderBrush="Black" 
+        BorderThickness="1" HorizontalAlignment="Right">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SettingsSlideTransform" X="{Binding ElementName=BaseView, Path=ActualWidth}"/>
+            </Border.RenderTransform>
+            <Grid Grid.Column="1" 
+            HorizontalAlignment="Stretch" 
+            VerticalAlignment="Stretch" Background="Purple" ShowGridLines="False">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="0.75*" />
+                    <RowDefinition Height="1.1*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CloseSettingsDialog" Content="X" Grid.Row="1" Grid.Column="5" Focusable="False" FontSize="16" Margin="20" Click="CloseSettingsDialog_Click" />
+                <local:SettingsView Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Grid.RowSpan="8"  />
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

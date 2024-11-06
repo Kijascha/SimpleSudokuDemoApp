@@ -35,33 +35,63 @@ public class NakedPairConstraint(IPuzzleModel puzzle) : Constraint
         }
         return false;
     }
+
     private bool FindNakedPairsInUnit(int row, int col, SearchUnitType searchUnitType)
     {
-        // get matching candidate pairs within a 3x3 sudoku box
+        // Get cells with exactly two candidates
         var matchingCells = ConstraintHelper.GetMatchingPairsInUnit(_puzzle, row, col, searchUnitType)
-            .Where(c => c.Candidates.Count == 2);
+            .Where(c => CountBits(c.SolverCandidates.BitMask) == 2);
 
-        // handling the elimination of candidates of other cells within the box 
-        if (matchingCells.Any())
+        //Debug.WriteLine($"Checking for Naked Pairs in {searchUnitType} at ({row}, {col})");
+
+        foreach (var matchingPair in matchingCells)
         {
-            foreach (var matchingPair in matchingCells)
-            {
-                var overlappingCells = _puzzle.GetUnit(row, col, searchUnitType)
-                    .Where(cell => cell.Digit == null &&
-                                                                                cell.Candidates.Overlaps(matchingPair.Candidates) &&
-                                                                                !cell.Candidates.SetEquals(matchingPair.Candidates));
+            int nakedPairMask = matchingPair.SolverCandidates.BitMask;
+            //Debug.WriteLine($"Found Naked Pair with mask {Convert.ToString(nakedPairMask, 2).PadLeft(9, '0')} at ({matchingPair.Row}, {matchingPair.Column})");
 
-                if (overlappingCells.Any())
+            // Log all cells in the current unit
+            var allCellsInUnit = _puzzle.GetUnit(row, col, searchUnitType);
+
+            // Identify overlapping cells in the unit
+            var overlappingCells = allCellsInUnit
+                .Where(cell => cell.Digit == 0 &&
+                               (cell.SolverCandidates.BitMask & nakedPairMask) != 0 &&
+                               cell.SolverCandidates.BitMask != nakedPairMask);
+
+            bool changed = false;
+
+            // Attempt to eliminate naked pair candidates
+            foreach (var overlappingCell in overlappingCells)
+            {
+                int originalMask = overlappingCell.SolverCandidates.BitMask;
+                int newCandidates = originalMask & ~nakedPairMask;
+
+                if (newCandidates != originalMask)
                 {
-                    foreach (var overlappingCell in overlappingCells)
-                    {
-                        overlappingCell.Candidates.RemoveWhere(x => matchingPair.Candidates.Contains(x));
-                    }
-                    return true;
+                    overlappingCell.SolverCandidates = new Candidates(newCandidates); // Update cell's candidates
+                    changed = true;
+
                 }
+            }
+
+            if (changed)
+            {
+                return true;
             }
         }
 
         return false;
+    }
+
+    // Helper method to count set bits (candidates) in a bitmask
+    private int CountBits(int bitmask)
+    {
+        int count = 0;
+        while (bitmask != 0)
+        {
+            count += bitmask & 1;
+            bitmask >>= 1;
+        }
+        return count;
     }
 }

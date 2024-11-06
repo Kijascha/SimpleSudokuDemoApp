@@ -1,0 +1,105 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:SimpleSudokuDemo.Controls">
+    
+    <Style x:Key="DigitModeCheckBox" TargetType="{x:Type RadioButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="5" Padding=".2" Width="50" Height="50">
+                        <Border x:Name="CheckBoxBorder" BorderBrush="Purple" BorderThickness="5" CornerRadius="1">
+                            <Border BorderBrush="Black" BorderThickness="1" Background="White" Width="38" Height="38" HorizontalAlignment="Center">
+                                <TextBlock Text="9" x:Name="CheckBoxText" FontFamily="Arial" Foreground="Purple" FontWeight="Bold" FontSize="32" Margin="0 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Border>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxText" Property="Foreground" Value="MediumPurple" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CenterModeCheckBox" TargetType="{x:Type RadioButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="5" Padding=".2" Width="50" Height="50">
+                        <Border x:Name="CheckBoxBorder" BorderBrush="Purple" BorderThickness="5" CornerRadius="1">
+                            <Border BorderBrush="Black" BorderThickness="1" Background="White" Width="38" Height="38" HorizontalAlignment="Center">
+                                <TextBlock Text="1234" x:Name="CheckBoxText" FontFamily="Arial" Foreground="Purple" FontWeight="Bold" FontSize="15" Margin="-1 3 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Border>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxText" Property="Foreground" Value="MediumPurple" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CornerModeCheckBox" TargetType="{x:Type RadioButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="5" Padding="0" Width="50" Height="50">
+                        <Border x:Name="CheckBoxBorder" BorderBrush="Purple" BorderThickness="5" CornerRadius="1">
+                            <Border BorderBrush="Black" BorderThickness="1" Background="White" Width="38" Height="38" HorizontalAlignment="Center">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="1" 
+                                               x:Name="CheckBoxCorner1" 
+                                               FontFamily="Arial" Foreground="Purple" 
+                                               FontWeight="Bold" FontSize="12" 
+                                               Margin="0 2 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="2" 
+                                               x:Name="CheckBoxCorner2" 
+                                               FontFamily="Arial" Foreground="Purple" 
+                                               FontWeight="Bold" FontSize="12" 
+                                               Margin="0 2 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="5" 
+                                               x:Name="CheckBoxCorner3" 
+                                               FontFamily="Arial" Foreground="Purple" 
+                                               FontWeight="Bold" FontSize="12" 
+                                               Margin="0 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="9" 
+                                               x:Name="CheckBoxCorner4" 
+                                               FontFamily="Arial" Foreground="Purple" 
+                                               FontWeight="Bold" FontSize="12" 
+                                               Margin="0 0 0 0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </Border>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckBoxBorder" Property="BorderBrush" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxCorner1" Property="Foreground" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxCorner2" Property="Foreground" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxCorner3" Property="Foreground" Value="MediumPurple" />
+                            <Setter TargetName="CheckBoxCorner4" Property="Foreground" Value="MediumPurple" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

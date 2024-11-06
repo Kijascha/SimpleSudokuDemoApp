@@ -39,7 +39,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                                                                                 (unitType == SearchUnitType.Column) ? _puzzle.GetColumn(startCol, false) :
                                                                                 _puzzle.GetBox(startRow, startCol, false);
 
-            var filteredUnit = unit.Where(cell => cell.Candidates.Contains(candidate));
+            var filteredUnit = unit.Where(cell => cell.SolverCandidates.Contains(candidate));
             if (filteredUnit.Any() && filteredUnit.Count() == 2)
             {
                 var possiblePointingCellA = filteredUnit.ToList()[0];
@@ -64,7 +64,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                             var nonPairCellsInBox = box.Where(c =>
                                 !(c.Row == possiblePointingCellA.Row && c.Column == possiblePointingCellA.Column) &&
                                 !(c.Row == possiblePointingCellB.Row && c.Column == possiblePointingCellB.Column) &&
-                                c.Candidates.Contains(candidate));
+                                c.SolverCandidates.Contains(candidate));
 
 
                             if (!nonPairCellsInBox.Any()) return false;
@@ -75,7 +75,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
                                 foreach (var cell in nonPairCellsInBox)
                                 {
-                                    cell.Candidates.Remove(candidate);
+                                    cell.SolverCandidates.Remove(candidate);
                                 }
                                 return true;
                             }
@@ -88,7 +88,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                             var nonPairCellsInBox = box.Where(c =>
                                 !(c.Row == possiblePointingCellA.Row && c.Column == possiblePointingCellA.Column) &&
                                 !(c.Row == possiblePointingCellB.Row && c.Column == possiblePointingCellB.Column) &&
-                                c.Candidates.Contains(candidate));
+                                c.SolverCandidates.Contains(candidate));
 
 
                             if (!nonPairCellsInBox.Any()) return false;
@@ -99,7 +99,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
                                 foreach (var cell in nonPairCellsInBox)
                                 {
-                                    cell.Candidates.Remove(candidate);
+                                    cell.SolverCandidates.Remove(candidate);
                                 }
                                 return true;
                             }

@@ -22,4 +22,9 @@ public static class ServiceExtensions
         services.AddSingleton<INavigationService, NavigationService>();
 
     }
+    public static void AddGameService(this IServiceCollection services)
+    {
+        services.AddSingleton<IGameService, GameService>();
+
+    }
 }

@@ -13,6 +13,7 @@ public partial class CellModel : ObservableObject
     public HashSet<int> PlayerCandidates { get; set; }
     public Thickness CellBorderThickness { get; set; } = new Thickness(.5, .5, .5, .5);
     [ObservableProperty] private SolidColorBrush _cellBackground;
+    public bool IsPredefined { get; set; } = false;
     public CellModel()
     {
         PlayerCandidates = [];

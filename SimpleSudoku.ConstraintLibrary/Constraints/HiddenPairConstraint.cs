@@ -59,7 +59,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                         {
                             // Get the cells where candidate1 and candidate2 both appear
                             var candidateCells = unitCells
-                                .Where(cell => cell.Candidates.Contains(candidate1) && cell.Candidates.Contains(candidate2))
+                                .Where(cell => cell.SolverCandidates.Contains(candidate1) && cell.SolverCandidates.Contains(candidate2))
                                 .ToList();
 
                             // If exactly two cells contain both candidate1 and candidate2, it's a hidden pair
@@ -69,7 +69,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                                 bool anyChanges = false;
                                 foreach (var cell in candidateCells)
                                 {
-                                    var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                    var cellCandidates = _puzzle.Board[cell.Row, cell.Column].SolverCandidates.Collection.ToHashSet();
                                     var otherCandidates = cellCandidates.Except(new[] { candidate1, candidate2 }).ToHashSet();
 
                                     if (otherCandidates.Count > 0)
@@ -89,7 +89,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                                     // If no changes were made, log this pair to avoid reprocessing
                                     foreach (var cell in candidateCells)
                                     {
-                                        var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                        var cellCandidates = _puzzle.Board[cell.Row, cell.Column].SolverCandidates.Collection;
                                         HandledPairs.Add(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), new HashSet<int> { candidate1, candidate2 }));
                                     }
                                 }

@@ -27,9 +27,9 @@ namespace SimpleSudoku.ConstraintLibrary
             int count = 0;
 
             var unitCells = (searchUnitType == SearchUnitType.Row)
-                ? _puzzle.GetRow(unitRow, false).Where(cell => cell.Candidates.Contains(candidate))
-                : (searchUnitType == SearchUnitType.Column) ? _puzzle.GetColumn(unitCol, false).Where(cell => cell.Candidates.Contains(candidate))
-                : _puzzle.GetBox(unitRow, unitCol, false).Where(cell => cell.Candidates.Contains(candidate));
+                ? _puzzle.GetRow(unitRow, false).Where(cell => cell.SolverCandidates.Contains(candidate))
+                : (searchUnitType == SearchUnitType.Column) ? _puzzle.GetColumn(unitCol, false).Where(cell => cell.SolverCandidates.Contains(candidate))
+                : _puzzle.GetBox(unitRow, unitCol, false).Where(cell => cell.SolverCandidates.Contains(candidate));
 
             count = unitCells.Count();
             return count;
@@ -59,42 +59,42 @@ namespace SimpleSudoku.ConstraintLibrary
             }
 
             var unitCells = (searchUnitType == SearchUnitType.Row)
-                ? _puzzle.GetRow(unit, false).Where(cell => cell.Candidates.Contains(candidate))
-                : _puzzle.GetColumn(unit, false).Where(cell => cell.Candidates.Contains(candidate));
+                ? _puzzle.GetRow(unit, false).Where(cell => cell.SolverCandidates.Contains(candidate))
+                : _puzzle.GetColumn(unit, false).Where(cell => cell.SolverCandidates.Contains(candidate));
 
             count = unitCells.Count();
             return count;
         }
 
 
-        public static IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInUnit(IPuzzleModel _puzzle, int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
+        public static IEnumerable<CellV2> GetMatchingPairsInUnit(IPuzzleModel _puzzle, int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
         {
             SearchUnitType.Box => GetMatchingPairsInBox(_puzzle, row, col),
             SearchUnitType.Row => GetMatchingPairsInRow(_puzzle, row, col),
             SearchUnitType.Column => GetMatchingPairsInColumn(_puzzle, row, col),
             _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
         };
-        private static IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInRow(IPuzzleModel _puzzle, int row, int col)
+        private static IEnumerable<CellV2> GetMatchingPairsInRow(IPuzzleModel _puzzle, int row, int col)
         {
             for (int c = 0; c < 9; c++)
             {
-                if (c != col && _puzzle.Digits[row, c] == null && _puzzle.SolverCandidates[row, c].SetEquals(_puzzle.SolverCandidates[row, col]))
+                if (c != col && _puzzle.Board[row, c].Digit == 0 && _puzzle.Board[row, c].SolverCandidates.Collection.ToHashSet().SetEquals(_puzzle.Board[row, col].SolverCandidates.Collection))
                 {
-                    yield return (row, c, _puzzle.SolverCandidates[row, c]);
+                    yield return _puzzle.Board[row, c];
                 }
             }
         }
-        private static IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInColumn(IPuzzleModel _puzzle, int row, int col)
+        private static IEnumerable<CellV2> GetMatchingPairsInColumn(IPuzzleModel _puzzle, int row, int col)
         {
             for (int r = 0; r < 9; r++)
             {
-                if (r != row && _puzzle.Digits[r, col] == null && _puzzle.SolverCandidates[r, col].SetEquals(_puzzle.SolverCandidates[row, col]))
+                if (r != row && _puzzle.Board[r, col].Digit == 0 && _puzzle.Board[r, col].SolverCandidates.Collection.ToHashSet().SetEquals(_puzzle.Board[row, col].SolverCandidates.Collection))
                 {
-                    yield return (r, col, _puzzle.SolverCandidates[r, col]);
+                    yield return _puzzle.Board[r, col];
                 }
             }
         }
-        private static IEnumerable<(int Row, int Col, HashSet<int> Candidates)> GetMatchingPairsInBox(IPuzzleModel _puzzle, int row, int col)
+        private static IEnumerable<CellV2> GetMatchingPairsInBox(IPuzzleModel _puzzle, int row, int col)
         {
             int startRow = row - row % 3;
             int startCol = col - col % 3;
@@ -103,9 +103,9 @@ namespace SimpleSudoku.ConstraintLibrary
             {
                 for (int c = startCol; c < startCol + 3; c++)
                 {
-                    if ((r != row || c != col) && _puzzle.Digits[r, c] == null && _puzzle.SolverCandidates[r, c].SetEquals(_puzzle.SolverCandidates[row, col]))
+                    if ((r != row || c != col) && _puzzle.Board[r, c].Digit == 0 && _puzzle.Board[r, c].SolverCandidates.Collection.ToHashSet().SetEquals(_puzzle.Board[row, col].SolverCandidates.Collection))
                     {
-                        yield return (r, c, _puzzle.SolverCandidates[r, c]);
+                        yield return _puzzle.Board[r, c];
                     }
                 }
             }

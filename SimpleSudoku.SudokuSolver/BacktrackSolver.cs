@@ -2,7 +2,7 @@
 
 namespace SimpleSudoku.SudokuSolver
 {
-    public class BacktrackSolver(IPuzzleModel puzzle)
+    public class BacktrackSolver(IPuzzleModel puzzle) : IBacktrackSolver
     {
         private readonly IPuzzleModel _puzzle = puzzle;
 
@@ -35,7 +35,7 @@ namespace SimpleSudoku.SudokuSolver
                 if (_puzzle.IsValidDigit(row, col, candidates[digit]))
                 {
                     // Place the digit in the cell
-                    _puzzle.UpdateDigit(row, col, candidates[digit], validate: false);
+                    _puzzle.UpdateDigit(row, col, candidates[digit], CommonLibrary.System.GameMode.Play, CommonLibrary.System.CandidateMode.SolverCandidates);
 
                     // Recursively attempt to solve the rest of the puzzle
                     if (Solve())
@@ -44,7 +44,7 @@ namespace SimpleSudoku.SudokuSolver
                     }
 
                     // Backtrack: remove the digit (set it to null)
-                    _puzzle.UpdateDigit(row, col, null, validate: false);
+                    _puzzle.UpdateDigit(row, col, 0, CommonLibrary.System.GameMode.Play, CommonLibrary.System.CandidateMode.SolverCandidates);
                 }
             }
 
@@ -62,7 +62,7 @@ namespace SimpleSudoku.SudokuSolver
             {
                 for (int col = 0; col < PuzzleModel.Size; col++)
                 {
-                    if (!_puzzle.Digits[row, col].HasValue)
+                    if (_puzzle.Board[row, col].Digit == 0)
                     {
                         return (row, col); // Return the first empty cell found
                     }

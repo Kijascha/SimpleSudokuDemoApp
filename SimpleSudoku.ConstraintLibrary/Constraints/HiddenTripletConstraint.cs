@@ -46,18 +46,18 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                     for (int i3 = i2 + 1; i3 < PuzzleModel.Size; i3++)
                     {
                         // ensure the cells we're loopint through are valid
-                        if (!(unitCells[i1].Digit == null || unitCells[i2].Digit == null || unitCells[i3].Digit == null)) continue;
-                        if (unitCells[i1].Candidates.Count == 0 || unitCells[i2].Candidates.Count == 0 || unitCells[i3].Candidates.Count == 0) continue;
+                        if (!(unitCells[i1].Digit == 0 || unitCells[i2].Digit == 0 || unitCells[i3].Digit == 0)) continue;
+                        if (unitCells[i1].SolverCandidates.Collection.Count == 0 || unitCells[i2].SolverCandidates.Collection.Count == 0 || unitCells[i3].SolverCandidates.Collection.Count == 0) continue;
 
                         // combine candidates from all 3 unitCells
-                        var combinedCandidates = new HashSet<int>(unitCells[i1].Candidates); // cell 1 canidates
-                        combinedCandidates.UnionWith(unitCells[i2].Candidates);  // cell 2 canidates
-                        combinedCandidates.UnionWith(unitCells[i3].Candidates);  // cell 3 canidates
+                        var combinedCandidates = new HashSet<int>(unitCells[i1].SolverCandidates.Collection); // cell 1 canidates
+                        combinedCandidates.UnionWith(unitCells[i2].SolverCandidates.Collection);  // cell 2 canidates
+                        combinedCandidates.UnionWith(unitCells[i3].SolverCandidates.Collection);  // cell 3 canidates
 
                         // triplet found
                         if (combinedCandidates.Count == 3)
                         {
-                            var unsolvedCells = unitCells.Where(c => c != unitCells[i1] && c != unitCells[i2] && c != unitCells[i3] && c.Digit == null).ToList();
+                            var unsolvedCells = unitCells.Where(c => c != unitCells[i1] && c != unitCells[i2] && c != unitCells[i3] && c.Digit == 0).ToList();
 
                             if (unsolvedCells.Count > 0)
                             {
@@ -66,7 +66,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
 
                                 foreach (var cell in unsolvedCells)
                                 {
-                                    var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                    var cellCandidates = _puzzle.Board[cell.Row, cell.Column].SolverCandidates.Collection.ToHashSet();
                                     var relevantCandidates = cellCandidates.Intersect(combinedCandidates).ToHashSet();
 
                                     if (relevantCandidates.Count > 0 && !HandledTriplets.Contains(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), combinedCandidates)))
@@ -91,7 +91,7 @@ namespace SimpleSudoku.ConstraintLibrary.Constraints
                                     // If no changes were made, log this triplet to avoid reprocessing
                                     foreach (var cell in unsolvedCells)
                                     {
-                                        var cellCandidates = _puzzle.SolverCandidates[cell.Row, cell.Column];
+                                        var cellCandidates = _puzzle.Board[cell.Row, cell.Column].SolverCandidates.Collection;
                                         HandledTriplets.Add(((cell.Row, cell.Column, new HashSet<int>(cellCandidates)), combinedCandidates));
                                     }
                                 }

@@ -14,5 +14,11 @@ namespace SimpleSudoku.SudokuSolver.Services
                     p.GetRequiredService<IPuzzleModel>()
                 ));
         }
+        public static void AddBacktrackSolver(this IServiceCollection services)
+        {
+            services.AddSingleton<IBacktrackSolver, BacktrackSolver>(p => new BacktrackSolver(
+                    p.GetRequiredService<IPuzzleModel>()
+                ));
+        }
     }
 }

@@ -1,13 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SimpleSudoku.CommonLibrary.Models;
 using SimpleSudoku.SudokuSolver.Services;
+using SimpleSudokuDemo.Core;
 using SimpleSudokuDemo.Services;
 using SimpleSudokuDemo.ViewModels;
 using SimpleSudokuDemo.Views;
-using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
-using System.Windows.Media;
 
 namespace SimpleSudokuDemo
 {
@@ -20,6 +21,17 @@ namespace SimpleSudokuDemo
         public App()
         {
             AppHost = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((hostContext, configurationBuilder) =>
+                {
+                    configurationBuilder.SetBasePath(Directory.GetCurrentDirectory());
+                    configurationBuilder.AddJsonFile("appsettings.json");
+
+#if DEBUG
+                    configurationBuilder.AddJsonFile("appsettings.Development.json", true, true);
+#else
+                    configurationBuilder.AddJsonFile("appsettings.Production.json", true, true);
+#endif
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Register ViewModels
@@ -27,13 +39,21 @@ namespace SimpleSudokuDemo
                     services.AddFactory<MenuViewModel>();
                     services.AddFactory<CreateViewModel>();
                     services.AddFactory<PlayViewModel>();
+                    services.AddFactory<SettingsViewModel>();
+
+                    services.AddSingleton<IAppSettingsService, AppSettingsService>();
+
+                    // Register configuration settings
+                    services.Configure<AppSettings>(hostContext.Configuration);
 
                     services.AddNavigationService();
                     services.AddSingleton((p) => p);
-                    services.AddSingleton<IEnumerable<CellModel>, ObservableCollection<CellModel>>((p) => InitializeCollection());
-                    services.AddSingleton<IPuzzleModel, PuzzleModel>(p => new PuzzleModel(InitializeCollection()));
-
+                    services.AddSingleton<IPuzzleModel, PuzzleModel>(p => new PuzzleModel(Initialize2DCollectionV2()));
+                    services.AddSingleton<IPuzzleModelV2, PuzzleModelV2>(p => new PuzzleModelV2(Initialize2DCollectionV2()));
+                    // Register Modules
                     services.AddConstraintSolver();
+                    services.AddBacktrackSolver();
+                    services.AddGameService();
 
                     // Register Views and set DataContext for each one
                     services.AddSingleton(p => new StartupView()
@@ -52,8 +72,13 @@ namespace SimpleSudokuDemo
                     {
                         DataContext = p.GetRequiredService<PlayViewModel>()
                     });
+                    services.AddSingleton(p => new SettingsView()
+                    {
+                        DataContext = p.GetRequiredService<SettingsViewModel>()
+                    });
                 })
                 .Build();
+
         }
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -70,34 +95,23 @@ namespace SimpleSudokuDemo
 
             base.OnExit(e);
         }
-
-        private static ObservableCollection<CellModel> InitializeCollection()
+        private static CellV2[,] Initialize2DCollectionV2()
         {
-            var cellCollection = new ObservableCollection<CellModel>();
+            CellV2[,] collection2D = new CellV2[PuzzleModel.Size, PuzzleModel.Size];
 
-            for (int row = 0; row < PuzzleModel.Size; row++)
+            for (int row = 0; row < PuzzleModelV2.Size; row++)
             {
-                for (int column = 0; column < PuzzleModel.Size; column++)
+                for (int column = 0; column < PuzzleModelV2.Size; column++)
                 {
-                    double left = column % 3 == 0 ? 2 : .5;
-                    double top = row % 3 == 0 ? 2 : .5;
-                    double right = column == 9 - 1 ? 2 : 0;
-                    double bottom = row == 9 - 1 ? 2 : 0;
-
-                    cellCollection.Add(new CellModel
+                    collection2D[row, column] = new CellV2
                     {
                         Row = row,
-                        Column = column,
-                        Digit = null,
-                        SolverCandidates = [1, 2, 3, 4, 5, 6, 7, 8, 9],
-                        PlayerCandidates = [],
-                        CellBorderThickness = new Thickness(left, top, right, bottom),
-                        CellBackground = Brushes.White
-                    });
+                        Column = column
+                    };
                 }
             }
 
-            return cellCollection;
+            return collection2D;
         }
     }
 

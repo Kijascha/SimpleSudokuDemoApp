@@ -1,376 +1,327 @@
 ﻿using CommunityToolkit.Diagnostics;
+using CommunityToolkit.Mvvm.ComponentModel;
 using SimpleSudoku.CommonLibrary.System;
-using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace SimpleSudoku.CommonLibrary.Models;
 
-public class PuzzleModel : IPuzzleModel
+public partial class PuzzleModel : ObservableObject, IPuzzleModel
 {
     public const int Size = 9; // set to 9 for now for a regular 9x9 sudoku grid
-    public int?[,] Digits { get; init; }
-    public HashSet<int>[,] PlayerCandidates { get; init; }
-    public HashSet<int>[,] SolverCandidates { get; init; }
+    public CellV2[,] Board { get; set; }
 
-    private static HashSet<(int Row, int Column, int Candidate)> _removedCandidates = [];
-    private IEnumerable<CellModel>? _cells;
-    /// <summary>
-    /// Occurs when an attempt to set a digit violates Sudoku rules.
-    /// Subscribers can handle this event to provide feedback to the user, such as highlighting the cell with the error.
-    /// </summary>
-    public event EventHandler<SudokuErrorEventArgs>? SudokuError;
-    public event EventHandler<SudokuSuccessEventArgs>? SudokuSuccess;
+    // Store bitmasks for removed candidates to enable restoration
+    private readonly HashSet<(int Row, int Column, int Candidate)> _removedSolverCandidates = [];
+    // Dictionary to store original candidates of cells when a digit is set
+    private readonly Dictionary<(int Row, int Column), int> _savedCandidates = new();
+    // Stacks to store history for undo and redo actions
+    private readonly Stack<CellV2[,]> _undoStack = [];
+    private readonly Stack<CellV2[,]> _redoStack = [];
 
-    public PuzzleModel()
-    {
-        Digits = new int?[Size, Size];
-        PlayerCandidates = new HashSet<int>[Size, Size];
-        SolverCandidates = new HashSet<int>[Size, Size];
+    // Properties to check if undo or redo is possible
+    [ObservableProperty] private bool _canUndo;
+    [ObservableProperty] private bool _canRedo;
 
-        InitializeCandidates();
-    }
     private readonly object _lockObject = new();
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PuzzleModel"/> class using an observable collection of <see cref="CellModel"/>.
-    /// </summary>
-    /// <param name="cells">The observable collection of cells representing the puzzle state.</param>
-    public PuzzleModel(IEnumerable<CellModel> cells) : this()
+    // Method to notify about state changes
+    private void NotifyStackChange()
     {
-        foreach (var cell in cells)
+        CanUndo = _undoStack.Count > 0;
+        CanRedo = _redoStack.Count > 0;
+    }
+    #region Constructors
+    public PuzzleModel()
+    {
+        Board = new CellV2[Size, Size];
+    }
+    public PuzzleModel(CellV2[,] board)
+    {
+        Board = new CellV2[Size, Size];
+
+        for (int row = 0; row < Size; row++)
         {
-            Digits[cell.Row, cell.Column] = cell.Digit;
-            PlayerCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.PlayerCandidates);
-            SolverCandidates[cell.Row, cell.Column] = new HashSet<int>(cell.SolverCandidates);
-        }
-        _cells = cells;
-    }
-
-    /// <summary>
-    /// Converts the current state of the puzzle into an observable collection of <see cref="CellModel"/> objects.
-    /// </summary>
-    /// <returns>
-    /// An <see cref="ObservableCollection{T}"/> containing <see cref="CellModel"/> objects that represent the current state of the puzzle grid.
-    /// Each <see cref="CellModel"/> object includes the <c>Row</c>, <c>Column</c>, <c>Digit</c>, <c>SolverCandidates</c>, and <c>PlayerCandidates</c> for a cell.
-    /// </returns>
-    /// <remarks>
-    /// This method iterates through the puzzle grid and creates a new <see cref="CellModel"/> object for each cell.
-    /// It initializes each <see cref="CellModel"/> with the corresponding <c>Row</c>, <c>Column</c>, <c>Digit</c>, <c>SolverCandidates</c>, and <c>PlayerCandidates</c>
-    /// from the puzzle model, and then adds it to the <see cref="ObservableCollection{T}"/>.
-    /// </remarks>
-    public ObservableCollection<CellModel> ToObservableCollection()
-    {
-        ObservableCollection<CellModel> collection = [.. _cells];
-
-        if (_cells != null)
-            foreach (var cell in _cells)
+            for (int column = 0; column < Size; column++)
             {
-                cell.Digit = Digits[cell.Row, cell.Column];
-                cell.PlayerCandidates = PlayerCandidates[cell.Row, cell.Column];
-                cell.SolverCandidates = SolverCandidates[cell.Row, cell.Column];
+                Board[row, column] = board[row, column];
             }
-
-        return collection;
+        }
     }
+    #endregion
 
-    /// <summary>
-    /// Sets or removes the specified digit in the specified cell.
-    /// If validation is enabled, checks if the move is valid according to Sudoku rules.
-    /// </summary>
-    /// <param name="row">The row number of the cell (0-8).</param>
-    /// <param name="column">The column number of the cell (0-8).</param>
-    /// <param name="digit">The digit to set in the cell (1-9) or <c>null</c> to clear the cell.</param>
-    /// <param name="validate">Indicates whether to validate the move according to Sudoku rules.</param>
-    /// <remarks>
-    /// When a digit is set, this method clears the solver and player candidates for that cell and backs up the player candidates.
-    /// If the digit is removed, the player candidates are restored from the backup, and the solver candidates are reset.
-    /// If validation is enabled and the move is invalid, a <see cref="SudokuErrorEventArgs"/> event is raised with details of the conflict.
-    /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    /// <exception cref="ArgumentException">Thrown if the digit is not between 1 and 9 (inclusive) or null.</exception>
-    public void UpdateDigit(int row, int column, int? digit, bool validate = true)
+    #region Export
+    // Method to clone the board state
+    private CellV2[,] CloneBoard(CellV2[,] board)
+    {
+        var clone = new CellV2[Size, Size];
+        for (int row = 0; row < Size; row++)
+        {
+            for (int col = 0; col < Size; col++)
+            {
+                clone[row, col] = board[row, col].Clone();
+            }
+        }
+        return clone;
+    }
+    public CellV2[][] ToJaggedArray()
+    {
+        var jaggedBoard = new CellV2[Size][];
+
+        for (int i = 0; i < Size; i++)
+        {
+            jaggedBoard[i] = new CellV2[Size];
+            for (int j = 0; j < Size; j++)
+            {
+                jaggedBoard[i][j] = Board[i, j].Clone();
+            }
+        }
+        return jaggedBoard;
+    }
+    public void FromJaggedArray(CellV2[][] jaggedBoard)
+    {
+        for (int i = 0; i < Size; i++)
+        {
+            for (int j = 0; j < Size; j++)
+            {
+                Board[i, j] = jaggedBoard[i][j].Clone();
+            }
+        }
+    }
+    #endregion
+
+    #region Update and Restore
+    public void UpdateDigit(int row, int column, int digit, GameMode gameMode, CandidateMode candidateMode)
     {
         lock (_lockObject)
         {
             ValidateRowColumn(row, column);
             ValidateDigit(digit);
 
-            (int? digit, int row, int column) previousDigit = (Digits[row, column], row, column);
+            int currentDigit = Board[row, column].Digit;
 
-            var beforeCheck = IsValidDigit(row, column, digit) && Digits[row, column] == null;
-            var afterCheck = IsValidDigit(row, column, digit) && Digits[row, column] != null;
-
-            // Check if the same digit is being entered
-            if (Digits[row, column] == digit)
+            if (gameMode == GameMode.Play)
             {
-                // If the same digit is entered, remove it by setting to null
-                Digits[row, column] = null;
+                // Save the current board state to undo stack before making changes
+                _undoStack.Push(CloneBoard(Board));
+                _redoStack.Clear(); // Clear redo stack on new action
+                NotifyStackChange(); // Notify the UI that stacks have changed
+            }
 
-                UpdateCandidatesInCurrentCell(row, column, clearCandidates: false);
+            if (currentDigit == digit)
+            {
+                // Toggle off: clear the digit and restore candidates
+                Board[row, column].Digit = 0;
+                RestoreCandidates(row, column, currentDigit); // Restore removed solver candidates
+
             }
             else
             {
-                // Otherwise, set the new digit
-                Digits[row, column] = digit;
-                UpdateCandidatesInCurrentCell(row, column, clearCandidates: true);
-            }
-
-            if (previousDigit.digit.HasValue)
-            {
-                // Restore candidates for the previous digit
-                UpdateCandidatesInRow(ref _removedCandidates, (row, column, null), previousDigit.digit);
-                UpdateCandidatesInColumn(ref _removedCandidates, (row, column, null), previousDigit.digit);
-                UpdateCandidatesInBox(ref _removedCandidates, (row, column, null), previousDigit.digit);
-            }
-
-            else if (digit.HasValue)
-            {
-                // Update candidates for the new digit
-                UpdateCandidatesInRow(ref _removedCandidates, (row, column, digit), null);
-                UpdateCandidatesInColumn(ref _removedCandidates, (row, column, digit), null);
-                UpdateCandidatesInBox(ref _removedCandidates, (row, column, digit), null);
-            }
-
-            if (validate)
-            {
-
-                if (beforeCheck)
+                if (digit == 0)
                 {
-                    SudokuSuccess?.Invoke(this, new SudokuSuccessEventArgs(row, column));
-                    return;
+                    Board[row, column].Digit = 0;
+                    Board[row, column].CenterCandidates.Clear();
+                    Board[row, column].CornerCandidates.Clear();
+                    Board[row, column].SolverCandidates.Clear();
+
+                    // Restore candidates across the affected units and current cell
+                    RestoreCandidates(row, column, currentDigit);
                 }
-
-                if (Digits[row, column] == null && SolverCandidates[row, column].Count > 0)
+                else
                 {
-                    SudokuSuccess?.Invoke(this, new SudokuSuccessEventArgs(row, column));
-                    return;
-                }
+                    // Save current solver candidates bitmask before clearing
+                    if (Board[row, column]?.SolverCandidates != null)
+                    {
+                        _savedCandidates[(row, column)] = Board[row, column].SolverCandidates.BitMask;
+                    }
 
-                if (Digits[row, column] != null && !IsValidDigit(row, column, Digits[row, column]))
-                {
-                    SudokuError?.Invoke(this, new SudokuErrorEventArgs(row, column));
-                    return;
+                    // Toggle on: set the digit and remove only existing candidates
+                    Board[row, column].Digit = digit;
+                    RemoveCandidatesInUnit(SearchUnitType.Row, row, column, digit);
+                    RemoveCandidatesInUnit(SearchUnitType.Column, row, column, digit);
+                    RemoveCandidatesInUnit(SearchUnitType.Box, row, column, digit);
+
+                    // Clear candidates when a digit is set (for simplicity)
+                    if (Board[row, column].Digit != 0)
+                    {
+                        // TODO: Add Restoration of candidates in the current cell
+                        Board[row, column].CenterCandidates.Clear();
+                        Board[row, column].CornerCandidates.Clear();
+                        Board[row, column].SolverCandidates.Clear();
+
+                    }
                 }
             }
         }
     }
-
-    public void UpdateCandidate(int row, int column, int candidate, bool useSolverCandidates = true)
+    public void UpdateCandidate(int row, int column, int candidate, GameMode gameMode, bool useSolverCandidates = true, CandidateMode candidateMode = CandidateMode.None)
     {
         lock (_lockObject)
         {
             ValidateRowColumn(row, column);
             ValidateCandidate(candidate);
 
-            if (Digits[row, column].HasValue)
+            if (Board[row, column].Digit != 0)
             {
                 // If a digit is already set, do nothing as candidates should be ignored
                 return;
             }
 
+            if (gameMode == GameMode.Play)
+            {
+                // Save the current board state to undo stack before making changes
+                _undoStack.Push(CloneBoard(Board));
+                _redoStack.Clear(); // Clear redo stack on new action
+                NotifyStackChange(); // Notify the UI that stacks have changed
+            }
+
             if (useSolverCandidates)
             {
                 // Remove candidate if it exists
-                if (!SolverCandidates[row, column].Remove(candidate))
+                if (!Board[row, column].SolverCandidates.Remove(candidate))
                 {
                     // Add candidate if it does not exist
-                    SolverCandidates[row, column].Add(candidate);
+                    Board[row, column].SolverCandidates.Add(candidate);
                 }
             }
             else
             {
-                // Remove candidate if it exists
-                if (!PlayerCandidates[row, column].Remove(candidate))
+
+                switch (candidateMode)
                 {
-                    // Add candidate if it does not exist
-                    PlayerCandidates[row, column].Add(candidate);
+                    case CandidateMode.CenterCandidates:
+                        // Remove candidate if it exists
+                        if (!Board[row, column].CenterCandidates.Remove(candidate))
+                        {
+                            // Add candidate if it does not exist
+                            Board[row, column].CenterCandidates.Add(candidate);
+                        }
+                        break;
+
+                    case CandidateMode.CornerCandidates:
+                        // Remove candidate if it exists
+                        if (!Board[row, column].CornerCandidates.Remove(candidate))
+                        {
+                            // Add candidate if it does not exist
+                            Board[row, column].CornerCandidates.Add(candidate);
+                        }
+                        break;
                 }
             }
         }
     }
-
-    private void UpdateCandidatesInRow(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
-        (int row, int col, int? digit) currentCell, int? candidateToRestore)
+    // Undo the last action by restoring the previous board state
+    public void Undo()
     {
-        var currentRow = GetRow(currentCell.row, false);
+        if (_undoStack.Count == 0) return;
 
-        if (currentCell.digit.HasValue)
-        {
-            foreach (var cell in currentRow)
-            {
-                if (!Digits[cell.Row, cell.Column].HasValue)
-                {
-                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
-                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
-                }
-            }
-        }
-        else if (candidateToRestore.HasValue)
-        {
-            var candidatesToRestore = removedCandidates.Where(c => c.Row == currentCell.row);
-            foreach (var candidate in candidatesToRestore)
-            {
-                if (candidate.Candidate == candidateToRestore && !Digits[candidate.Row, candidate.Column].HasValue)
-                {
-                    RestoreCandidate(candidate.Row, candidate.Column, candidate.Candidate);
-                }
-            }
-        }
+        // Push current state to redo stack before undoing
+        _redoStack.Push(CloneBoard(Board));
+
+        // Restore the last board state from undo stack
+        var previousState = _undoStack.Pop();
+        Board = previousState;
+
+        NotifyStackChange(); // Notify UI that stacks have changed
     }
 
-    private void UpdateCandidatesInColumn(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
-        (int row, int col, int? digit) currentCell, int? candidateToRestore)
+    // Redo the last undone action by restoring from redo stack
+    public void Redo()
     {
+        if (_redoStack.Count == 0) return;
 
-        var currentColumn = GetColumn(currentCell.col, false);
+        // Push current state to undo stack before redoing
+        _undoStack.Push(CloneBoard(Board));
 
-        if (currentCell.digit.HasValue)
-        {
-            foreach (var cell in currentColumn)
-            {
-                if (!Digits[cell.Row, cell.Column].HasValue)
-                {
-                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
-                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
-                }
-            }
-        }
-        else if (candidateToRestore.HasValue)
-        {
-            var candidatesToRestore = removedCandidates.Where(c => c.Column == currentCell.col);
-            foreach (var candidate in candidatesToRestore)
-            {
-                if (candidate.Candidate == candidateToRestore && !Digits[candidate.Row, candidate.Column].HasValue)
-                {
-                    RestoreCandidate(candidate.Row, candidate.Column, candidate.Candidate);
-                }
-            }
-        }
+        // Restore the last board state from redo stack
+        var nextState = _redoStack.Pop();
+        Board = nextState;
+
+        NotifyStackChange(); // Notify UI that stacks have changed
     }
-
-    private void UpdateCandidatesInBox(ref HashSet<(int Row, int Column, int Candidate)> removedCandidates,
-        (int row, int col, int? digit) currentCell, int? candidateToRestore)
+    private void RemoveCandidatesInUnit(SearchUnitType searchUnitType, int row, int column, int digit)
     {
-        var currentBox = GetBox(currentCell.row, currentCell.col, false);
+        var cellsInUnit = (SearchUnitType.Row == searchUnitType) ? GetRow(row, false) :
+                            (SearchUnitType.Column == searchUnitType) ? GetColumn(column, false) :
+                            GetBox(row, column, false);
 
-        if (currentCell.digit.HasValue)
+        foreach (var cell in cellsInUnit)
         {
-            foreach (var cell in currentBox)
+            if (Board[cell.Row, cell.Column].CornerCandidates.Collection.Any() &&
+                Board[cell.Row, cell.Column].CornerCandidates.Contains(digit))
             {
-                if (!Digits[cell.Row, cell.Column].HasValue)
-                {
-                    SolverCandidates[cell.Row, cell.Column].Remove(currentCell.digit.Value);
-                    removedCandidates.Add((cell.Row, cell.Column, currentCell.digit.Value));
-                }
+                Board[cell.Row, cell.Column].CornerCandidates.Remove(digit);
+            }
+            if (Board[cell.Row, cell.Column].SolverCandidates.Collection.Any() &&
+                Board[cell.Row, cell.Column].SolverCandidates.Contains(digit) &&
+                !_removedSolverCandidates.Contains((cell.Row, cell.Column, digit)))
+            {
+                Board[cell.Row, cell.Column].SolverCandidates.Remove(digit);
+                _removedSolverCandidates.Add((cell.Row, cell.Column, digit));
+            }
+            if (Board[cell.Row, cell.Column].CenterCandidates.Collection.Any() &&
+                Board[cell.Row, cell.Column].CenterCandidates.Contains(digit))
+            {
+                Board[cell.Row, cell.Column].CenterCandidates.Remove(digit);
             }
         }
-        else if (candidateToRestore.HasValue)
-        {
-            foreach (var cell in currentBox)
-            {
-                var candidateToRemove = removedCandidates.FirstOrDefault(c => c.Row == cell.Row &&
-                                                                               c.Column == cell.Column &&
-                                                                               c.Candidate == candidateToRestore);
+    }
+    private void RestoreCandidates(int row, int column, int digit)
+    {
+        //TODO implement the restoration part for the solvercandidates only
 
-                if (candidateToRemove.Candidate == candidateToRestore && !Digits[cell.Row, cell.Column].HasValue)
-                {
-                    RestoreCandidate(candidateToRemove.Row, candidateToRemove.Column, candidateToRemove.Candidate);
-                }
-            }
-        }
-    }
-    private void UpdateCandidatesInCurrentCell(int row, int column, bool clearCandidates)
-    {
-        if (clearCandidates)
+        lock (_lockObject)
         {
-            // Store current candidates in _removedCandidates before clearing
-            foreach (var candidate in SolverCandidates[row, column])
+            ValidateRowColumn(row, column);
+            ValidateDigit(digit);
+
+            // Restore candidates in related cells from _removedSolverCandidates
+            var candidatesToRestore = _removedSolverCandidates
+                .Where(entry => IsInSameUnit(entry.Row, entry.Column, row, column) && entry.Candidate == digit)
+                .ToList();
+
+            foreach (var (r, c, candidate) in candidatesToRestore)
             {
-                _removedCandidates.Add((row, column, candidate));
+                Board[r, c].SolverCandidates.Add(candidate);
+                _removedSolverCandidates.Remove((r, c, candidate));
+
+                Debug.WriteLine($"Restored candidate {candidate} to cell at ({r}, {c})");
             }
-            // Clear candidates in the current cell
-            SolverCandidates[row, column].Clear();
-        }
-        else
-        {
-            // Restore candidates in the current cell from removedCandidates
-            var candidatesToRestore = _removedCandidates.Where(c => c.Row == row && c.Column == column);
-            foreach (var (Row, Column, Candidate) in candidatesToRestore)
+
+            // Restore candidates for the current cell from _savedCandidates, if present
+            if (_savedCandidates.TryGetValue((row, column), out int savedBitmask))
             {
-                RestoreCandidate(Row, Column, Candidate);
+                Board[row, column].SolverCandidates = new Candidates(savedBitmask);
+                _savedCandidates.Remove((row, column)); // Clear stored candidates for the cell
+
+                Debug.WriteLine($"Restored original candidates to cell at ({row}, {column}): Bitmask {Convert.ToString(savedBitmask, 2).PadLeft(9, '0')}");
             }
         }
     }
-    private void RestoreCandidate(int row, int column, int candidate)
+    private static bool IsInSameUnit(int row1, int col1, int row2, int col2)
     {
-        if (IsValidDigit(row, column, candidate))
-        {
-            SolverCandidates[row, column].Add(candidate);
-            _removedCandidates.Remove((row, column, candidate));
-        }
+        return row1 == row2 || col1 == col2 || GetBlockIndex(row1, col1) == GetBlockIndex(row2, col2);
     }
-    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
+    private static int GetBlockIndex(int row, int col)
+    {
+        return (row / 3) * 3 + (col / 3);
+    }
+    #endregion
+
+    #region Units
+    public IEnumerable<CellV2> GetUnit(int row, int col, SearchUnitType searchUnitType) => searchUnitType switch
     {
         SearchUnitType.Box => GetBox(row, col, false),
         SearchUnitType.Row => GetRow(row, false),
         SearchUnitType.Column => GetColumn(col, false),
         _ => throw new ArgumentOutOfRangeException(nameof(searchUnitType))
     };
-    /// <summary>
-    /// Retrieves the digits and candidate sets for each cell in the specified row.
-    /// </summary>
-    /// <param name="row">The row index (0-8) of the Sudoku grid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
-    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2, T3, T4}"/> containing the row, column, digit and candidate set for each cell in the row.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetRow(int row, bool usePlayerCandidates)
-    {
-        for (int column = 0; column < Size; column++)
-        {
-            ValidateRowColumn(row, column);
-            yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
-        }
-    }
+    public IEnumerable<CellV2> GetRow(int row, bool usePlayerCandidates) => Enumerable.Range(0, Size).Select(col => Board[row, col]);
+    public IEnumerable<CellV2> GetColumn(int col, bool usePlayerCandidates) => Enumerable.Range(0, Size).Select(row => Board[row, col]);
+    public IEnumerable<CellV2> GetBox(int startRow, int startCol, bool usePlayerCandidates) => GetBoxRange(startRow).SelectMany(r => GetBoxRange(startCol).Select(c => Board[r, c]));
+    private static IEnumerable<int> GetBoxRange(int index) => Enumerable.Range((index / 3) * 3, 3);
+    #endregion
 
-    /// <summary>
-    /// Retrieves the digits and candidate sets for each cell in the specified column.
-    /// </summary>
-    /// <param name="col">The column index (0-8) of the Sudoku grid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
-    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the column.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetColumn(int column, bool usePlayerCandidates)
-    {
-        for (int row = 0; row < Size; row++)
-        {
-            ValidateRowColumn(row, column);
-            yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
-        }
-    }
-
-    /// <summary>
-    /// Retrieves the digits and candidate sets for each cell in the specified 3x3 subgrid (box).
-    /// </summary>
-    /// <param name="startRow">The starting row index (0-6) of the subgrid.</param>
-    /// <param name="startCol">The starting column index (0-6) of the subgrid.</param>
-    /// <param name="usePlayerCandidates">True to include player candidates, false to include solver candidates instead.</param>
-    /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="ValueTuple{T1, T2}"/> containing the digit and candidate set for each cell in the subgrid.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if the row or column is out of the valid range (0-8).</exception>
-    public IEnumerable<(int Row, int Column, int? Digit, HashSet<int> Candidates)> GetBox(int startRow, int startCol, bool usePlayerCandidates)
-    {
-        // Calculate the top-left cell of the box based on startRow and startCol
-        int boxStartRow = (startRow / 3) * 3; // Example: If startRow is 3, boxStartRow should be 3
-        int boxStartCol = (startCol / 3) * 3; // Example: If startCol is 6, boxStartCol should be 6
-
-        // Iterate over the cells in the 3x3 box
-        for (int row = boxStartRow; row < boxStartRow + 3; row++)
-        {
-            for (int column = boxStartCol; column < boxStartCol + 3; column++)
-            {
-                ValidateRowColumn(row, column);
-                yield return (row, column, Digits[row, column], usePlayerCandidates ? PlayerCandidates[row, column] : SolverCandidates[row, column]);
-            }
-        }
-    }
+    #region Validation
     private static void ValidateRowColumn(int row, int column)
     {
         ValidateRow(row);
@@ -384,42 +335,38 @@ public class PuzzleModel : IPuzzleModel
     {
         Guard.IsBetweenOrEqualTo(column, 0, 8, nameof(column));
     }
-    private static void ValidateDigit(int? digit)
+    private static void ValidateDigit(int digit)
     {
-        // Check if the digit has a value and if it's outside the valid range (1-9)
-        if (digit.HasValue)
-        {
-            Guard.IsBetweenOrEqualTo(digit.Value, 1, 9, nameof(digit));
-        }
+        if (digit != 0) Guard.IsBetweenOrEqualTo(digit, 1, 9, nameof(digit));
     }
     private static void ValidateCandidate(int candidate)
     {
         Guard.IsBetweenOrEqualTo(candidate, 1, 9, nameof(candidate));
     }
 
-    public bool IsValidInRow(int row, int? digit)
+    public bool IsValidInRow(int row, int digit)
     {
         ValidateRow(row);
         ValidateDigit(digit);
 
         for (int column = 0; column < Size; column++)
         {
-            if (Digits[row, column] == digit) return false;
+            if (Board[row, column].Digit == digit) return false;
         }
         return true;
     }
-    public bool IsValidInColumn(int column, int? digit)
+    public bool IsValidInColumn(int column, int digit)
     {
         ValidateColumn(column);
         ValidateDigit(digit);
 
         for (int row = 0; row < Size; row++)
         {
-            if (Digits[row, column] == digit) return false;
+            if (Board[row, column].Digit == digit) return false;
         }
         return true;
     }
-    public bool IsValidInSubgrid(int row, int column, int? digit)
+    public bool IsValidInSubgrid(int row, int column, int digit)
     {
         ValidateRowColumn(row, column);
         ValidateDigit(digit);
@@ -431,30 +378,14 @@ public class PuzzleModel : IPuzzleModel
         {
             for (int c = startColumn; c < startColumn + 3; c++)
             {
-                if (Digits[r, c] == digit) return false;
+                if (Board[r, c].Digit == digit) return false;
             }
         }
         return true;
     }
-    public bool IsValidDigit(int row, int column, int? digit)
+    public bool IsValidDigit(int row, int column, int digit)
     {
         return IsValidInRow(row, digit) && IsValidInColumn(column, digit) && IsValidInSubgrid(row, column, digit);
     }
-
-    private void InitializeCandidates()
-    {
-
-        for (int row = 0; row < Size; row++)
-        {
-            for (int column = 0; column < Size; column++)
-            {
-                PlayerCandidates[row, column] = []; // player candidates should be empty at start and be set/update by the player
-                SolverCandidates[row, column] = [];
-                for (int num = 1; num <= Size; num++)
-                {
-                    SolverCandidates[row, column].Add(num);
-                }
-            }
-        }
-    }
+    #endregion
 }

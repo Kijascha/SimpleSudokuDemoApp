@@ -40,8 +40,8 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
                             {
                                 case SearchUnitType.Row:
                                     // Check if both cells in each column contain the target candidate
-                                    if (_puzzle.SolverCandidates[unitA1, unitB1].Contains(candidate) && _puzzle.SolverCandidates[unitA2, unitB1].Contains(candidate) &&
-                                        _puzzle.SolverCandidates[unitA1, unitB2].Contains(candidate) && _puzzle.SolverCandidates[unitA2, unitB2].Contains(candidate))
+                                    if (_puzzle.Board[unitA1, unitB1].SolverCandidates.Contains(candidate) && _puzzle.Board[unitA2, unitB1].SolverCandidates.Contains(candidate) &&
+                                        _puzzle.Board[unitA1, unitB2].SolverCandidates.Contains(candidate) && _puzzle.Board[unitA2, unitB2].SolverCandidates.Contains(candidate))
                                     {
                                         // Remove the candidate from other cells in the same rows
                                         removedSuccessfully |= RemoveCandidateFromUnit(searchUnitType, candidate, unitB1, unitA1, unitA2);
@@ -50,8 +50,8 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
                                     break;
                                 case SearchUnitType.Column:
                                     // Check if both cells in each column contain the target candidate
-                                    if (_puzzle.SolverCandidates[unitB1, unitA1].Contains(candidate) && _puzzle.SolverCandidates[unitB2, unitA1].Contains(candidate) &&
-                                        _puzzle.SolverCandidates[unitB1, unitA2].Contains(candidate) && _puzzle.SolverCandidates[unitB2, unitA2].Contains(candidate))
+                                    if (_puzzle.Board[unitB1, unitA1].SolverCandidates.Contains(candidate) && _puzzle.Board[unitB2, unitA1].SolverCandidates.Contains(candidate) &&
+                                        _puzzle.Board[unitB1, unitA2].SolverCandidates.Contains(candidate) && _puzzle.Board[unitB2, unitA2].SolverCandidates.Contains(candidate))
                                     {
                                         // Remove the candidate from other cells in the same rows
                                         removedSuccessfully |= RemoveCandidateFromUnit(searchUnitType, candidate, unitB1, unitA1, unitA2);
@@ -78,16 +78,16 @@ public class XWingConstraint(IPuzzleModel puzzle) : Constraint
             switch (searchUnitType)
             {
                 case SearchUnitType.Row:
-                    if (unit != unitB1 && unit != unitB2 && _puzzle.SolverCandidates[unit, unitA].Contains(candidate))
+                    if (unit != unitB1 && unit != unitB2 && _puzzle.Board[unit, unitA].SolverCandidates.Contains(candidate))
                     {
-                        _puzzle.SolverCandidates[unit, unitA].Remove(candidate);
+                        _puzzle.Board[unit, unitA].SolverCandidates.Remove(candidate);
                         removedSuccessfully = true;
                     }
                     break;
                 case SearchUnitType.Column:
-                    if (unit != unitB1 && unit != unitB2 && _puzzle.SolverCandidates[unitA, unit].Contains(candidate))
+                    if (unit != unitB1 && unit != unitB2 && _puzzle.Board[unitA, unit].SolverCandidates.Contains(candidate))
                     {
-                        _puzzle.SolverCandidates[unitA, unit].Remove(candidate);
+                        _puzzle.Board[unitA, unit].SolverCandidates.Remove(candidate);
                         removedSuccessfully = true;
                     }
                     break;

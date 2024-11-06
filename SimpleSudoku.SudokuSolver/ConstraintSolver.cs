@@ -32,6 +32,7 @@ public class ConstraintSolver(IConstraintManager constraintManager, IPuzzleModel
         Debug.WriteLine(e.ErrorMessage);
     }
 
+    public IPuzzleModel Puzzle => _puzzleModel;
     public bool Solve()
     {
         bool anyConstraints;
